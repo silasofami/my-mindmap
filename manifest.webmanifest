@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "拾念思维导图",
+  "short_name": "拾念",
+  "description": "轻轻收好每一个想法",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f7f8fc",
+  "theme_color": "#f7f8fc",
+  "lang": "zh-CN",
+  "categories": ["productivity", "education"],
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

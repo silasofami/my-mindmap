@@ -1,0 +1,9 @@
+重新启动步骤
+项目服务目前已启动。以后需要手动启动时：
+1. 打开 PowerShell。
+2. 切换到项目目录：
+   cd "D:\Users\石宏伟\ChatGPT\My-思维导图开发"
+3. 启动静态网页服务：
+   py dev_server.py
+4. 保持 PowerShell 窗口运行，浏览器访问 http://localhost:8000。
+5. 停止服务时，在运行服务的 PowerShell 窗口按 Ctrl+C。

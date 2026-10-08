@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <base href="/">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f7f8fc">
+  <title>拾念 · 思维导图</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css?v=20261008-sidebar-pointer-v1">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css" integrity="sha384-3rdsX6e5mueWyoweR9NIVmtEsUkokpBT/0ALqKKIBMr9j4qhHkaIkAcGgsE6uVlp" crossorigin="anonymous">
+</head>
+<body class="library-view">
+  <section id="runtimeErrorNotice" class="runtime-error-notice" role="alert" aria-live="assertive" hidden>
+    <div class="runtime-error-copy">
+      <strong>页面遇到脚本错误</strong>
+      <span data-error-message>页面初始化失败。请查看错误详情并联系维护者。</span>
+      <pre data-error-details hidden></pre>
+    </div>
+    <button type="button" data-close-runtime-error aria-label="关闭错误提示">×</button>
+  </section>
+  <script>
+    (() => {
+      const show = (message, details = '') => {
+        const panel = document.getElementById('runtimeErrorNotice');
+        if (!panel) return;
+        panel.hidden = false;
+        panel.querySelector('[data-error-message]').textContent = String(message || '未知脚本错误');
+        const detail = panel.querySelector('[data-error-details]');
+        if (detail) { detail.textContent = String(details || ''); detail.hidden = !details; }
+      };
+      window.__shinianShowRuntimeError = show;
+      window.addEventListener('error', event => {
+        console.error('[runtime] 页面脚本异常', event.error || event.message);
+        show(event.message || '页面脚本执行失败', event.error?.stack || `${event.filename || ''}:${event.lineno || ''}:${event.colno || ''}`);
+      });
+      window.addEventListener('unhandledrejection', event => {
+        const reason = event.reason;
+        console.error('[runtime] 未处理的异步异常', reason);
+        show(reason?.message || String(reason || '未处理的异步异常'), reason?.stack || '');
+      });
+      document.getElementById('runtimeErrorNotice')?.addEventListener('click', event => {
+        if (event.target.closest('[data-close-runtime-error]')) document.getElementById('runtimeErrorNotice').hidden = true;
+      });
+    })();
+  </script>
+  <header class="topbar">
+    <a class="brand" id="brandHome" href="#" aria-label="拾念首页"><span class="brand-icon">念</span><span>拾念</span></a>
+    <div class="map-name"><button id="backToLibrary" class="back-library" type="button" title="返回脑图列表">← <span>脑图列表</span></button><input id="mapTitle" aria-label="导图名称" value="读书笔记"><span class="saved"><i></i> 本机已保存</span></div>
+    <div class="top-actions">
+      <button class="secondary ui-theme-toggle" id="uiThemeToggle" type="button" aria-label="切换深色模式" aria-pressed="false" title="切换深色模式"><span aria-hidden="true">☾</span></button>
+      <button class="secondary" id="importBtn">导入</button><div class="export-menu-wrap"><button class="secondary" id="exportBtn" type="button" aria-haspopup="true" aria-expanded="false">导出备份 <span aria-hidden="true">⌄</span></button><div id="exportMenu" class="export-menu" role="menu" hidden><button id="exportJsonMenuBtn" type="button" role="menuitem">JSON 备份 <small>完整导图数据</small></button><button id="exportPngMenuBtn" type="button" role="menuitem">PNG 图片 <small>导出整张脑图</small></button><button id="exportMarkdownMenuBtn" type="button" role="menuitem">Markdown 大纲 <small>层级与备注</small></button></div></div>
+      <button class="secondary topbar-utility-button" id="shortcutHelpBtn" type="button" title="查看快捷键说明"><span aria-hidden="true">⌨</span><span>快捷键说明</span></button>
+      <button class="secondary topbar-utility-button" id="versionHistoryBtn" type="button" title="查看脑图版本历史"><span aria-hidden="true">◷</span><span>历史版本</span></button>
+      <button class="secondary pwa-install-button" id="installAppBtn" type="button">安装应用</button>
+      <button class="share-btn" id="cloudBtn">☁ 云同步</button>
+      <input type="file" id="fileInput" accept=".json,.md,.markdown,.txt,application/json,text/markdown,text/plain" hidden>
+    </div>
+  </header>
+  <div id="networkStatusBanner" class="network-status-banner" data-state="offline" role="status" aria-live="polite" hidden>
+    <span class="network-status-mark" aria-hidden="true">!</span>
+    <span id="networkStatusText">当前网络异常，改动会暂时保存在本地。</span>
+    <button id="resolveOfflineConflictBtn" type="button" hidden>处理冲突</button>
+    <button id="closeNetworkStatus" type="button" aria-label="关闭网络提示">×</button>
+  </div>
+  <section id="libraryView" class="library-view">
+    <aside class="library-global-nav" aria-label="一级导航">
+      <div class="global-nav-brand"><span class="brand-icon">念</span><span>拾念</span></div>
+      <nav class="global-nav-primary">
+        <button id="libraryHomeBtn" class="global-nav-item active" data-library-tab="home" type="button"><span class="global-nav-icon">⌂</span><span>首页</span></button>
+        <button id="libraryImportBtn" class="global-nav-item" type="button"><span class="global-nav-icon">⇧</span><span>导入</span></button>
+        <button id="libraryOpenBtn" class="global-nav-item" type="button"><span class="global-nav-icon">↗</span><span>打开</span></button>
+      </nav>
+      <div class="global-nav-divider"></div>
+      <div class="global-nav-section-label">工作区</div>
+      <nav class="global-nav-secondary">
+        <button id="libraryRecentBtn" class="global-nav-item" data-library-tab="recent" type="button"><span class="global-nav-icon">◷</span><span>最近访问</span></button>
+        <button id="libraryCloudBtn" class="global-nav-item" data-library-tab="cloud" type="button"><span class="global-nav-icon">☁</span><span>我的云文档</span></button>
+        <button id="libraryFavoritesBtn" class="global-nav-item" data-library-tab="favorites" type="button"><span class="global-nav-icon">☆</span><span>我的收藏</span></button>
+        <button id="librarySharesBtn" class="global-nav-item" data-library-tab="shares" type="button"><span class="global-nav-icon">↗</span><span>我的分享</span></button>
+        <button id="libraryTrashBtn" class="global-nav-item" type="button" title="查看云端回收站"><span class="global-nav-icon">▱</span><span>回收站</span></button>
+      </nav>
+      <div class="global-nav-spacer"></div>
+      <div class="global-nav-settings-wrap"><button id="librarySettingsBtn" class="global-nav-item global-nav-settings" type="button" aria-haspopup="true" aria-expanded="false"><span class="global-nav-icon">⚙</span><span>设置</span></button><div id="librarySettingsMenu" class="library-settings-menu" hidden><button id="openSupabaseSettings" type="button">☁ Supabase 云端配置</button></div></div>
+    </aside>
+    <aside class="library-folder-sidebar">
+      <header class="folder-sidebar-header">
+        <div class="folder-sidebar-account"><button id="libraryAccount" class="library-account" type="button" aria-haspopup="dialog" aria-controls="accountProfileModal" title="登录后管理你的云端导图">登录后管理你的云端导图</button><span class="folder-sidebar-caption">云端目录</span></div>
+        <div class="folder-sidebar-actions"><button id="newFolderBtn" class="sidebar-action-btn" type="button" title="新建文件夹">＋ 文件夹</button><button id="newCloudMapBtn" class="sidebar-action-btn primary" type="button" title="新建脑图">＋ 脑图</button></div>
+      </header>
+      <nav id="folderTree" class="folder-tree" aria-label="文件夹目录"></nav>
+      <div class="recycle-sidebar-links" aria-label="回收站目录">
+        <button id="cloudRecycleEntry" class="folder-tree-select" type="button">▱ 云端回收站</button>
+        <button id="localRecycleEntry" class="folder-tree-select" type="button">▱ 本地回收站</button>
+      </div>
+      <div class="folder-sidebar-footer"><span>拾念 · 私人空间</span><button id="folderSidebarSettingsBtn" type="button" title="账号与同步设置">⚙</button></div>
+    </aside>
+    <main class="library-main">
+      <header class="library-main-header">
+        <div class="library-path-heading"><span id="libraryContentTitle">我的云文档</span><nav id="folderBreadcrumbs" class="folder-breadcrumbs" aria-label="目录路径"></nav></div>
+        <div class="library-main-tools"><label class="library-search"><span aria-hidden="true">⌕</span><input id="librarySearch" type="search" placeholder="搜索文件夹和脑图" aria-label="搜索文件夹和脑图"></label><label class="library-sort-label"><span>排序</span><select id="librarySort" aria-label="排序方式"><option value="updated-desc">最近修改</option><option value="name-asc">名称 A-Z</option><option value="name-desc">名称 Z-A</option><option value="type">按类型</option></select></label><button class="secondary ui-theme-toggle library-theme-toggle" id="libraryThemeToggle" type="button" aria-label="切换深色模式" aria-pressed="false" title="切换深色模式"><span aria-hidden="true">☾</span></button></div>
+      </header>
+      <div id="cloudSaveAlert" class="cloud-save-alert" role="alert" hidden></div>
+      <div id="cloudListStatus" class="cloud-list-status" role="status">加载中…</div>
+      <p id="cloudConfigHint" class="cloud-config-hint" hidden>配置 Supabase 后即可登录并查看云端脑图。<button id="cloudConfigHintBtn" type="button">前往设置</button></p>
+      <div id="cloudMapList" class="cloud-map-list"></div>
+      <div id="cloudEmpty" class="cloud-empty" hidden><span>✳</span><h2>还没有云端脑图</h2><p>新建一张脑图，登录同一账号后即可在电脑和手机间同步。</p><button id="emptyNewCloudMapBtn" class="share-btn">创建第一张脑图</button></div>
+      <section id="local-library" class="local-library"><div class="local-library-heading"><div><h2>仅保存在此设备</h2><p id="localSessionHint">这些本地导图不会自动上传到云端。</p></div><div class="local-library-tools"><span id="localMapCount" class="local-count"></span><button id="migrateLocalDataBtn" class="local-new-folder" type="button" hidden>迁移到云端</button><button id="newLocalFolderBtn" class="local-new-folder" type="button">＋ 本地文件夹</button></div></div><nav id="localFolderBreadcrumbs" class="local-folder-breadcrumbs" aria-label="本地目录路径"></nav><div id="localMapList" class="local-map-list"></div></section>
+    </main>
+  </section>
+  <main id="shareView" class="public-share-view" hidden aria-live="polite">
+    <header class="public-share-header"><a class="public-share-brand" href="/">拾念 · 思维导图</a><button class="secondary ui-theme-toggle share-theme-toggle" id="shareThemeToggle" type="button" aria-label="切换深色模式" aria-pressed="false" title="切换深色模式"><span aria-hidden="true">☾</span></button></header>
+    <section class="public-share-content"><div class="public-share-heading"><span class="dialog-icon" aria-hidden="true">↗</span><h1 id="publicShareTitle">正在加载分享…</h1><p id="publicShareDescription" class="dialog-copy">只读预览</p><button id="publicShareExport" class="share-btn" type="button" hidden>导出 JSON</button></div><div id="publicShareTree" class="public-share-tree" aria-label="分享内容"></div><div id="publicShareStatus" class="public-share-status" role="status"></div></section>
+  </main>
+  <div class="modal-backdrop" id="folderActionModal" hidden>
+    <section class="cloud-dialog folder-dialog" role="dialog" aria-modal="true" aria-labelledby="folderActionTitle">
+      <button class="modal-close" id="closeFolderAction" aria-label="关闭">×</button><h2 id="folderActionTitle">选择目标文件夹</h2><p id="folderActionDescription" class="dialog-copy"></p>
+      <label class="folder-destination-label">目标位置<select id="folderDestination"></select></label>
+      <div id="folderDeleteOptions" class="folder-delete-options" hidden><label><input type="radio" name="folderDeleteMode" value="move" checked> 仅删除文件夹，将内部内容移动到上级目录</label><label><input type="radio" name="folderDeleteMode" value="recursive"> 删除文件夹及内部所有子文件夹和脑图</label></div>
+      <div class="folder-dialog-actions"><button id="cancelFolderAction" class="secondary">取消</button><button id="confirmFolderAction" class="share-btn">确定</button></div>
+    </section>
+  </div>
+  <div class="modal-backdrop" id="shareModal" hidden>
+    <section class="cloud-dialog share-dialog" role="dialog" aria-modal="true" aria-labelledby="shareDialogTitle">
+      <button class="modal-close" id="closeShareDialog" type="button" aria-label="关闭分享设置">×</button>
+      <div class="dialog-icon" aria-hidden="true">↗</div><h2 id="shareDialogTitle">分享文件</h2>
+      <p id="shareDialogDescription" class="dialog-copy">管理公开预览链接和访客导出权限。</p>
+      <label class="share-option"><input id="shareEnabledInput" type="checkbox"><span><strong>开启分享</strong><small>任何拥有链接的人都可以只读预览</small></span></label>
+      <label class="share-option share-export-option"><input id="shareExportInput" type="checkbox"><span><strong>允许访客导出</strong><small>关闭后，公开页面仅支持预览</small></span></label>
+      <div id="shareLinkSection" class="share-link-section" hidden><label for="shareUrlInput">公开分享链接</label><div class="share-link-row"><input id="shareUrlInput" type="text" readonly><button id="copyShareLinkBtn" class="secondary" type="button">复制链接</button></div></div>
+      <p id="shareDialogStatus" class="share-dialog-status" role="status" aria-live="polite"></p>
+      <div class="share-dialog-actions"><button id="cancelShareDialog" class="secondary" type="button">关闭</button></div>
+    </section>
+  </div>
+  <main id="editorView" hidden>
+    <aside class="sidebar">
+      <div class="side-heading"><span>本地导图</span><button id="newMapBtn" class="plus" aria-label="新建本地导图">＋</button></div>
+      <div id="mapList" class="map-list"></div>
+      <div class="side-tip"><span class="tip-spark">✳</span><div><b>灵感，随时收好</b><p>读书、学习、生活<br>把想法慢慢连起来。</p></div></div>
+      <div class="privacy-note"><span>▣</span> 本地导图与云端导图分开保存</div>
+    </aside>
+    <section class="workspace">
+      <div id="canvasTabBar" class="canvas-tab-bar" role="tablist" aria-label="已打开的脑图标签"></div>
+      <div class="toolbar">
+        <div class="node-search-control"><button id="nodeSearchToggle" class="tool canvas-search-toggle" type="button" title="搜索当前导图节点（Ctrl+F）" aria-label="搜索当前导图节点" aria-expanded="false" aria-controls="nodeSearchPanel">⌕</button><div id="nodeSearchPanel" class="node-search-panel" role="search" aria-label="搜索当前脑图节点" hidden><label class="node-search-input-wrap" for="nodeSearchInput"><span aria-hidden="true">⌕</span><input id="nodeSearchInput" type="search" placeholder="搜索节点名称 / 节点备注" autocomplete="off" aria-label="搜索节点名称或节点备注"></label><span id="nodeSearchStatus" class="node-search-status" role="status" aria-live="polite"></span><div id="nodeSearchResults" class="node-search-results" role="listbox" aria-label="节点搜索结果"></div></div></div>
+        <div class="tool-group color-tools canvas-command-group" role="toolbar" aria-label="脑图节点操作">
+          <button id="addSiblingBtn" class="tool canvas-command-button" data-canvas-command="sibling" title="新建同级节点（Enter）"><span class="command-icon">↵</span><span>同级</span></button>
+          <button id="addChildBtn" class="tool primary-tool canvas-command-button" data-canvas-command="child" title="新建子节点（Tab）"><span class="command-icon">＋</span><span>子节点</span></button>
+          <button id="promoteBtn" class="tool canvas-command-button" data-canvas-command="promote" title="提升节点一级（Shift+Tab）"><span class="command-icon">⇧</span><span>升级</span></button>
+          <button id="deleteBtn" class="tool canvas-command-button" data-canvas-command="delete" title="删除选中节点（Delete）"><span class="command-icon">⌫</span><span>删除</span></button>
+          <span class="tool-sep"></span>
+          <button id="copyBtn" class="tool canvas-command-button" data-canvas-command="copy" title="复制节点及子树（Ctrl+C）"><span class="command-icon">▢</span><span>复制</span></button>
+          <button id="cutBtn" class="tool canvas-command-button" data-canvas-command="cut" title="剪切节点及子树（Ctrl+X）"><span class="command-icon">✂</span><span>剪切</span></button>
+          <button id="pasteBtn" class="tool canvas-command-button" data-canvas-command="paste" title="粘贴为子节点（Ctrl+V）"><span class="command-icon">▣</span><span>粘贴</span></button>
+          <span class="toolbar-shortcut-compat" hidden aria-hidden="true"><button id="undoBtn"></button><button id="redoBtn"></button><button id="saveNowBtn"></button></span>
+          <button id="editTextBtn" class="tool canvas-command-button" data-canvas-command="edit" title="编辑节点文字（F2）"><span class="command-icon">✎</span><span>编辑</span></button>
+        </div>
+        <div class="node-style-menu-wrap">
+          <button id="nodeStyleToggle" class="tool node-style-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nodeStylePanel"><span aria-hidden="true">Aa</span><span>节点样式</span><span aria-hidden="true">⌄</span></button>
+          <div id="nodeStylePanel" class="node-style-panel" role="group" aria-label="节点样式设置" hidden>
+            <p id="nodeStyleEmptyPrompt" class="node-style-empty-prompt" hidden>请先选择节点，再调整节点样式。</p>
+            <div class="node-style-controls">
+              <div class="node-style-color-row">
+                <button id="colorBtn" class="tool style-tool" type="button" title="设置所选节点背景色" data-node-style-control disabled>◉ <span class="tool-label">背景色</span></button>
+                <button id="textColorBtn" class="tool style-tool" type="button" title="设置所选节点文字颜色" data-node-style-control disabled>A <span class="tool-label">文字色</span></button>
+                <div id="colorPanel" class="color-panel style-popover" hidden><label for="fillColorPicker">节点背景色<input id="fillColorPicker" type="color" value="#f4c84a"></label><button id="clearColorBtn" class="color-clear" type="button">清除自定义色</button></div>
+                <div id="textColorPanel" class="style-popover" hidden><label for="textColorPicker">文字颜色<input id="textColorPicker" type="color" value="#20243a"></label><button id="clearTextColorBtn" class="color-clear" type="button">自动适配 / 清除</button></div>
+              </div>
+              <label class="node-style-select-label" for="fontFamilySelect">字体<select id="fontFamilySelect" aria-label="选择节点字体" data-node-style-control disabled><option value="">默认字体</option><option value="sans">无衬线</option><option value="serif">衬线</option><option value="mono">等宽</option></select></label>
+              <div class="font-size-control" title="调整选中节点字号"><span>字号</span><button id="fontSmallerBtn" class="font-step" type="button" aria-label="减小字号" data-node-style-control disabled>A−</button><select id="fontSizeSelect" aria-label="选择字号" data-node-style-control disabled><option value="">默认</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="14">14</option><option value="16">16</option><option value="18">18</option><option value="20">20</option><option value="24">24</option><option value="28">28</option><option value="32">32</option></select><button id="fontLargerBtn" class="font-step" type="button" aria-label="增大字号" data-node-style-control disabled>A+</button></div>
+              <div class="node-style-toggle-row"><button id="boldBtn" class="tool style-tool style-toggle" type="button" title="切换加粗" aria-pressed="false" data-node-style-control disabled><strong>B</strong><span class="tool-label">加粗</span></button><button id="italicBtn" class="tool style-tool style-toggle" type="button" title="切换斜体" aria-pressed="false" data-node-style-control disabled><em>I</em><span class="tool-label">斜体</span></button></div>
+            </div>
+          </div>
+        </div>
+        <div class="node-theme-menu-wrap">
+          <button id="nodeThemeToggle" class="tool topbar-utility-button node-theme-toggle" type="button" aria-haspopup="true" aria-expanded="false" aria-controls="nodeThemePanel"><span aria-hidden="true">◈</span><span>主题</span></button>
+          <div id="nodeThemePanel" class="node-theme-panel" role="group" aria-label="脑图主题设置" hidden>
+            <label for="themeSelect">主题方案</label>
+            <select id="themeSelect" aria-label="节点主题方案"><option value="default">默认层级渐变主题</option><option value="morandi">柔和莫兰迪</option><option value="dark">暗夜深色</option><option value="botany">清新草木</option><option value="vintage">复古暖棕</option></select>
+            <button id="restoreNodeStylesBtn" class="node-style-restore" type="button" disabled>恢复自定义样式</button>
+          </div>
+        </div>
+        <div class="tool-group node-note-toolbar" role="toolbar" aria-label="节点备注操作">
+          <button id="nodeNoteBtn" class="tool note-toolbar-button" type="button" title="编辑选中节点备注" disabled><span aria-hidden="true">▤</span><span>节点备注</span></button>
+          <button id="canvasStarBtn" class="tool canvas-star-button" type="button" aria-pressed="false" title="收藏当前脑图"><span aria-hidden="true">☆</span><span>收藏</span></button>
+          <button id="canvasShareBtn" class="tool canvas-share-button" type="button" title="分享当前脑图"><span aria-hidden="true">↗</span><span>分享</span></button>
+        </div>
+        <div class="tool-group canvas-view-group"><button id="collapseBtn" class="tool">⊖ <span class="tool-label">折叠</span></button><span class="tool-sep"></span><button id="zoomOut" class="zoom" type="button" title="缩小画布" aria-label="缩小画布">−</button><span id="zoomLabel" class="zoom-label">100%</span><button id="zoomIn" class="zoom" type="button" title="放大画布" aria-label="放大画布">＋</button><button id="resetViewBtn" class="fit" type="button" title="恢复原始比例并居中导图">重置视图</button><button id="fitBtn" class="fit" type="button" title="缩放至适合画布">适应画布</button></div>
+      </div>
+      <div class="canvas-stage">
+        <aside id="outlinePanel" class="outline-panel is-collapsed" aria-label="大纲面板">
+          <div class="outline-header"><button id="outlineToggle" class="outline-toggle" type="button" aria-expanded="false" aria-controls="outlineTree">☷ <span>大纲</span></button></div>
+          <div id="outlineTree" class="outline-tree" role="tree" aria-label="脑图大纲" hidden></div>
+          <div id="outlineResizeHandle" class="outline-resize-handle" role="separator" aria-orientation="vertical" aria-label="拖动调整大纲宽度" aria-valuemin="180" aria-valuemax="520" aria-valuenow="236" tabindex="0"></div>
+        </aside>
+        <div class="canvas-wrap" id="canvasWrap" tabindex="0" role="application" aria-label="思维导图画布">
+          <div class="canvas" id="canvas"><svg id="links" aria-hidden="true"></svg><div id="nodes"></div></div>
+          <div class="canvas-hint"><span>拖到节点上/下方调整顺序</span><span>·</span><span>拖到节点中央设为子主题</span><span>·</span><span>空白处拖动画布</span><span>·</span><span>Ctrl 点击多选</span></div>
+          <button id="mobileAdd" class="mobile-add" aria-label="添加子主题">＋</button>
+        </div>
+      </div>
+      <div id="nodeContextMenu" class="node-context-menu" role="menu" aria-label="节点操作" hidden>
+        <button type="button" role="menuitem" data-node-menu-command="sibling">新建同级节点 <kbd>Enter</kbd></button>
+        <button type="button" role="menuitem" data-node-menu-command="child">新建子节点 <kbd>Tab</kbd></button>
+        <button type="button" role="menuitem" data-node-menu-command="promote">升级节点 <kbd>Shift+Tab</kbd></button>
+        <span class="node-context-separator" role="separator"></span>
+        <button type="button" role="menuitem" data-node-menu-command="copy">复制节点及子树</button>
+        <button type="button" role="menuitem" data-node-menu-command="cut">剪切节点及子树</button>
+        <button type="button" role="menuitem" data-node-menu-command="paste">粘贴为子节点</button>
+        <button type="button" role="menuitem" data-node-menu-command="delete" class="danger">删除节点 <kbd>Delete</kbd></button>
+        <span class="node-context-separator" role="separator"></span>
+        <button type="button" role="menuitem" data-node-menu-action="style">修改节点样式</button>
+        <button type="button" role="menuitem" data-node-menu-action="note">添加/编辑备注</button>
+        <button type="button" role="menuitem" data-node-menu-action="image">插入图片</button>
+        <button type="button" role="menuitem" data-node-menu-action="link">插入超链接</button>
+        <button type="button" role="menuitem" data-node-menu-action="math">插入数学公式</button>
+      </div>
+      <footer class="statusbar"><span id="footerSaveStatus" class="save-status"><i class="online-dot"></i> 本机已保存</span><span id="nodeCount">5 个主题</span><span class="keyboard-hint">Enter 新建同级主题　·　Tab 新建子主题　·　双击编辑　·　Ctrl 点击多选</span></footer>
+    </section>
+  </main>
+  <div id="toast" class="toast" role="status"></div>
+  <div id="nodeNoteModal" class="modal-backdrop node-note-backdrop" hidden>
+    <section class="cloud-dialog node-note-dialog" role="dialog" aria-modal="true" aria-labelledby="nodeNoteHeading">
+      <button class="modal-close" id="closeNodeNote" type="button" aria-label="关闭备注编辑">×</button>
+      <div class="dialog-icon" aria-hidden="true">▤</div>
+      <h2 id="nodeNoteHeading">节点备注</h2>
+      <p class="dialog-copy">为当前节点添加补充说明，保存后会随导图一起同步。</p>
+      <label class="node-note-label" for="nodeNoteInput">备注内容</label>
+      <textarea id="nodeNoteInput" class="node-note-input" rows="8" placeholder="输入节点备注…"></textarea>
+      <div class="node-note-actions"><button id="cancelNodeNote" class="secondary" type="button">取消</button><button id="saveNodeNote" class="share-btn" type="button">保存</button></div>
+    </section>
+  </div>
+  <div id="nodeNoteTooltip" class="node-note-tooltip" role="tooltip" hidden></div>
+  <div id="multilinePasteModal" class="modal-backdrop multiline-paste-backdrop" hidden>
+    <section class="cloud-dialog multiline-paste-dialog" role="dialog" aria-modal="true" aria-labelledby="multilinePasteHeading" aria-describedby="multilinePasteMessage">
+      <div class="dialog-icon" aria-hidden="true">↵</div>
+      <h2 id="multilinePasteHeading">粘贴多行文本</h2>
+      <p id="multilinePasteMessage" class="dialog-copy">检测到粘贴内容包含多行文本，是否将每一行自动拆分为独立子节点？</p>
+      <div class="multiline-paste-actions">
+        <button id="pasteCurrentNodeBtn" class="share-btn" type="button">否，粘贴到当前节点</button>
+        <button id="splitPasteChildrenBtn" class="secondary" type="button">是，拆分为多个子节点</button>
+      </div>
+    </section>
+  </div>
+  <div id="richMediaModal" class="modal-backdrop rich-media-backdrop" hidden>
+    <section class="cloud-dialog rich-media-dialog" role="dialog" aria-modal="true" aria-labelledby="richMediaTitle">
+      <button class="modal-close" id="closeRichMedia" type="button" aria-label="关闭富媒体编辑">×</button>
+      <div class="dialog-icon" aria-hidden="true" id="richMediaIcon">▧</div>
+      <h2 id="richMediaTitle">插入图片</h2>
+      <p class="dialog-copy" id="richMediaDescription">选择本地图片或提供图片网址。</p>
+      <div id="richImageFields" class="rich-media-fields">
+        <label class="rich-media-label" for="richImageFile">本地图片</label>
+        <input id="richImageFile" class="rich-media-input" type="file" accept="image/*">
+        <label class="rich-media-label" for="richImageUrl">或图片 URL</label>
+        <input id="richImageUrl" class="rich-media-input" type="url" placeholder="https://example.com/image.png">
+        <label class="rich-media-label" for="richImageAlt">替代文字（可用于搜索）</label>
+        <input id="richImageAlt" class="rich-media-input" type="text" maxlength="200" placeholder="图片说明">
+      </div>
+      <div id="richLinkFields" class="rich-media-fields" hidden>
+        <label class="rich-media-label" for="richLinkText">链接显示文字</label>
+        <input id="richLinkText" class="rich-media-input" type="text" maxlength="200" placeholder="例如：参考资料">
+        <label class="rich-media-label" for="richLinkUrl">目标网址</label>
+        <input id="richLinkUrl" class="rich-media-input" type="url" placeholder="https://example.com">
+      </div>
+      <div class="node-note-actions"><button id="cancelRichMedia" class="secondary" type="button">取消</button><button id="saveRichMedia" class="share-btn" type="button">添加</button></div>
+    </section>
+  </div>
+  <div id="mathModal" class="modal-backdrop math-backdrop" hidden>
+    <section class="cloud-dialog math-dialog" role="dialog" aria-modal="true" aria-labelledby="mathDialogTitle">
+      <button class="modal-close" id="closeMathModal" type="button" aria-label="关闭公式编辑">×</button>
+      <div class="dialog-icon" aria-hidden="true">📐</div>
+      <h2 id="mathDialogTitle">插入数学公式</h2>
+      <p class="dialog-copy">输入 LaTeX 公式；不合法的表达式会以红色提示，不影响节点。</p>
+      <label class="rich-media-label" for="mathLatexInput">LaTeX 代码</label>
+      <textarea id="mathLatexInput" class="math-latex-input" rows="5" spellcheck="false" placeholder="例如：\\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}"></textarea>
+      <label class="rich-media-label" for="mathDisplayMode">显示方式</label>
+      <select id="mathDisplayMode" class="math-display-mode"><option value="inline">行内公式</option><option value="block">块公式（单独一行）</option></select>
+      <div class="math-preview-label">实时预览</div>
+      <div id="mathPreview" class="math-preview" aria-live="polite">公式预览会显示在这里</div>
+      <div class="node-note-actions"><button id="cancelMathModal" class="secondary" type="button">取消</button><button id="saveMathBlock" class="share-btn" type="button">确认插入</button></div>
+    </section>
+  </div>
+  <div id="versionHistoryModal" class="modal-backdrop version-history-backdrop" hidden>
+    <section class="cloud-dialog version-history-dialog" role="dialog" aria-modal="true" aria-labelledby="versionHistoryTitle">
+      <button class="modal-close" id="closeVersionHistory" type="button" aria-label="关闭版本历史">×</button>
+      <div class="dialog-icon" aria-hidden="true">◷</div>
+      <h2 id="versionHistoryTitle">版本历史</h2>
+      <p class="dialog-copy">每次手动保存会创建一个快照。最多保留 20 个版本。</p>
+      <div id="versionHistoryStatus" class="version-history-status" role="status" aria-live="polite"></div>
+      <div id="versionHistoryList" class="version-history-list"></div>
+      <div id="versionHistoryEmpty" class="version-history-empty" hidden>还没有保存过版本。手动保存后，快照会显示在这里。</div>
+    </section>
+  </div>
+  <div id="importJsonModal" class="modal-backdrop import-json-backdrop" hidden>
+    <section class="cloud-dialog import-json-dialog" role="dialog" aria-modal="true" aria-labelledby="importJsonHeading">
+      <button class="modal-close" id="closeImportJson" type="button" aria-label="关闭导入选项">×</button>
+      <div class="dialog-icon" aria-hidden="true">⇧</div>
+      <h2 id="importJsonHeading">导入思维导图</h2>
+      <p class="dialog-copy" id="importJsonFileName">请选择导入方式。</p>
+      <div class="import-json-options">
+        <button id="replaceImportJsonBtn" class="import-json-option" type="button"><strong>替换当前导图</strong><span>使用文件内容覆盖当前导图，当前内容可通过撤销恢复。</span></button>
+        <button id="appendImportJsonBtn" class="import-json-option" type="button" disabled><strong>追加为选中节点的子节点</strong><span>导入整棵子树，保留节点样式、颜色与备注。</span></button>
+      </div>
+      <div class="import-json-actions"><button id="cancelImportJson" class="secondary" type="button">取消</button></div>
+    </section>
+  </div>
+  <div class="modal-backdrop" id="cloudModal" hidden>
+    <section class="cloud-dialog" role="dialog" aria-modal="true" aria-labelledby="cloudHeading">
+      <button class="modal-close" id="closeCloud" aria-label="关闭">×</button>
+      <div class="dialog-icon">☁</div><h2 id="cloudHeading">让导图跟着你走</h2>
+      <p class="dialog-copy">登录同一个账号后，电脑和手机上的导图会自动同步。</p>
+      <p class="local-file-warning" id="localFileWarning" hidden>当前页面是从 file:// 直接打开的。浏览器会限制清单、登录回调和本地存储。请改用本机 HTTP 地址：<a href="http://localhost:8000">http://localhost:8000</a></p>
+      <div id="cloudConfig" class="config-fields">
+        <label>Supabase 项目网址<input id="supabaseUrl" placeholder="https://xxxx.supabase.co" autocomplete="url"></label>
+        <label>公开 anon key<input id="supabaseKey" placeholder="eyJhbGciOi..." autocomplete="off"></label>
+        <div id="supabaseTestStatus" class="supabase-test-status" role="status" aria-live="polite"></div>
+        <div class="supabase-config-actions"><button class="secondary" id="saveConfig" type="button">保存配置</button><button class="share-btn" id="testSupabaseBtn" type="button">测试连接</button></div>
+        <p class="field-help">需要先创建 Supabase 项目并执行项目中的 SQL 设置。密钥只保存在本浏览器；请勿填入 service_role 密钥。</p>
+      </div>
+      <div id="authFields" class="config-fields" hidden>
+        <label>邮箱<input id="authEmail" type="email" placeholder="name@example.com" autocomplete="email"></label>
+        <label>密码<input id="authPassword" type="password" placeholder="至少 8 位" autocomplete="current-password"></label>
+        <button class="share-btn wide" id="signInBtn">登录</button>
+        <button class="secondary wide" id="signUpBtn">创建账号</button>
+        <button class="text-btn" id="disconnectBtn">更换项目配置</button>
+      </div>
+      <div id="signedInFields" class="config-fields" hidden>
+        <div id="accountEmail" class="account-email"></div>
+        <button class="secondary wide" id="openPasswordForm">修改密码</button>
+        <div id="passwordForm" class="config-fields password-form" hidden>
+          <label>旧密码（首次设置可留空）<input id="currentPassword" type="password" autocomplete="current-password" placeholder="已有密码时填写"></label>
+          <label>新密码<input id="newPassword" type="password" autocomplete="new-password" placeholder="请输入新密码"></label>
+          <label>确认新密码<input id="confirmPassword" type="password" autocomplete="new-password" placeholder="再输入一次新密码"></label>
+          <button class="share-btn wide" id="updatePasswordBtn">保存新密码</button>
+          <button class="text-btn" id="cancelPasswordForm">取消</button>
+        </div>
+        <button class="secondary wide" id="signOutBtn">退出登录</button>
+      </div>
+      <p class="cloud-note" id="cloudNote"></p>
+    </section>
+  </div>
+  <div class="modal-backdrop" id="accountProfileModal" hidden>
+    <section class="cloud-dialog account-profile-dialog" role="dialog" aria-modal="true" aria-labelledby="accountProfileTitle">
+      <button class="modal-close" id="closeAccountProfile" type="button" aria-label="关闭个人账号信息">×</button>
+      <div class="dialog-icon" aria-hidden="true">◉</div><h2 id="accountProfileTitle">个人账号</h2>
+      <p class="dialog-copy">查看账号资料并管理个人昵称。</p>
+      <div class="config-fields account-profile-fields">
+        <label>登录邮箱<div id="profileAccountEmail" class="account-email" dir="auto"></div></label>
+        <label>账号 ID<div id="profileAccountId" class="account-email account-id" dir="ltr"></div></label>
+        <label>个人昵称<input id="profileNickname" type="text" maxlength="40" autocomplete="nickname" placeholder="设置一个昵称"></label>
+      </div>
+      <p id="accountProfileStatus" class="field-help" role="status" aria-live="polite"></p>
+      <div class="account-profile-actions"><button id="profileSignOutBtn" class="secondary" type="button">退出登录</button><div><button id="cancelAccountProfile" class="secondary" type="button">关闭</button><button id="saveAccountProfile" class="share-btn" type="button">保存修改</button></div></div>
+    </section>
+  </div>
+  <div class="modal-backdrop offline-conflict-backdrop" id="offlineConflictModal" hidden>
+    <section class="cloud-dialog offline-conflict-dialog" role="dialog" aria-modal="true" aria-labelledby="offlineConflictTitle">
+      <button class="modal-close" id="closeOfflineConflict" type="button" aria-label="稍后处理">×</button>
+      <div class="dialog-icon" aria-hidden="true">↻</div>
+      <h2 id="offlineConflictTitle">发现云端版本冲突</h2>
+      <p class="dialog-copy" id="offlineConflictCopy">这张脑图在离线期间也被修改。请选择要保留的版本。</p>
+      <div class="offline-conflict-actions">
+        <button class="secondary" id="pullCloudVersionBtn" type="button">拉取云端版本</button>
+        <button class="share-btn" id="keepLocalVersionBtn" type="button">保留本地版本覆盖云端</button>
+      </div>
+      <button class="text-btn offline-conflict-later" id="deferOfflineConflictBtn" type="button">稍后处理</button>
+    </section>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-public-config.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.js" integrity="sha384-QFFtAGzvvj+bfgCGxXJlNZZR1nXEZgvG8tDLCCY1F19xl20WlfTYgguB4VcNdxYk" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <script defer src="app.js?v=20261008-sidebar-pointer-ghost-v2"></script>
+  <script>
+    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(error => console.warn('[pwa] Service Worker 注册失败', error)));
+    }
+  </script>
+</body>
+</html>
+

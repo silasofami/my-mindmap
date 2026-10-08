@@ -1,0 +1,9 @@
+{
+  "name": "shinian-mindmap-static",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "build:production": "node scripts/build.mjs --require-config"
+  }
+}

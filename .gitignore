@@ -1,0 +1,38 @@
+# Dependencies and package-manager caches
+node_modules/
+.npm/
+npm-cache/
+.pnpm-store/
+.yarn/cache/
+
+# Generated build/deployment output
+dist/
+.vercel/
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+项目supabase-key.txt
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Operating-system metadata
+.DS_Store
+._*
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Editors and temporary files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.tmp
+*.bak
