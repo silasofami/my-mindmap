@@ -1,12 +1,14 @@
-const CACHE_NAME = 'shinian-app-shell-v1';
+const CACHE_NAME = 'shinian-app-shell-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
   '/supabase-public-config.js',
-  '/manifest.webmanifest',
-  '/icon.svg'
+  '/manifest.json',
+  '/icon.svg',
+  '/icon-192.png',
+  '/icon-512.png'
 ];
 
 self.addEventListener('install', event => {
