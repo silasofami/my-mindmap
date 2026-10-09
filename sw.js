@@ -1,5 +1,5 @@
-const APP_VERSION = '1.0.1';
-const CACHE_VERSION = 'mindmap-v1.0.1';
+const APP_VERSION = '1.0.2';
+const CACHE_VERSION = 'mindmap-v1.0.2';
 const CACHE_NAME = `shinian-app-shell-${CACHE_VERSION}`;
 const APP_CACHE_PREFIXES = ['shinian-app-shell-', 'mindmap-app-shell-'];
 const APP_SHELL = [
