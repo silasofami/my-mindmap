@@ -439,6 +439,7 @@
           const library = document.getElementById('libraryView');
           return !!library && !library.hidden && location.pathname === '/';
         };
+        if (!isHome()) return;
         let registration;
         let updatePrompt;
         let reloadAfterUpdate = false;
@@ -501,12 +502,10 @@
           try {
             await registration.update();
             if (registration.waiting) await showUpdatePrompt(registration.waiting);
-          } catch (error) {
-            console.warn('[pwa] 检查应用更新失败', error);
-          }
+          } catch {}
         };
         try {
-          registration = await navigator.serviceWorker.register('/sw.js');
+          registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
           if (registration.waiting) void showUpdatePrompt(registration.waiting);
           registration.addEventListener('updatefound', () => {
             const installing = registration.installing;
@@ -521,9 +520,7 @@
           if (library) new MutationObserver(() => { if (isHome()) void checkForUpdate(); }).observe(library, { attributes: true, attributeFilter: ['hidden'] });
           document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && isHome()) void checkForUpdate(); });
           if (isHome()) void checkForUpdate();
-        } catch (error) {
-          console.warn('[pwa] Service Worker 注册失败', error);
-        }
+        } catch {}
       });
     }
   </script>
