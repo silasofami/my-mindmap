@@ -41,7 +41,7 @@ if (/service[_-]?role/i.test(anonKey) || /^sb_secret_/i.test(anonKey) || tokenRo
 }
 
 const files = [
-  'index.html', 'app.js', 'style.css', 'manifest.json', 'sw.js', 'icon.svg', 'icon-192.png', 'icon-512.png',
+  'index.html', 'app.js', 'style.css', 'manifest.json', 'privacy.html', 'sw.js', 'icon.svg', 'icon-192.png', 'icon-512.png',
   '_redirects', 'vercel.json'
 ];
 for (const name of files) {

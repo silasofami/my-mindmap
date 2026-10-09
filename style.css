@@ -1047,3 +1047,43 @@ body.public-share-mode>.topbar,body.public-share-mode>#networkStatusBanner{displ
 #migrateLocalDataBtn[hidden]{display:none}
 html[data-ui-theme="dark"] #localSessionHint{color:var(--ui-text-muted,#a9afc0)}
 @media(max-width:760px){.pwa-install-button{padding:7px 9px;font-size:10px}}
+/* Global settings dialog */
+.global-settings-dialog{width:min(100%,560px);max-height:min(90dvh,820px);display:flex;flex-direction:column;padding:26px 28px 20px}
+.global-settings-dialog h2{flex:0 0 auto;margin:12px 0 5px}
+.global-settings-dialog>.dialog-copy{flex:0 0 auto;margin-bottom:10px}
+.global-settings-scroll{min-height:0;overflow:auto;padding:0 5px 0 0;overscroll-behavior:contain}
+.global-settings-section{padding:15px 0;border-bottom:1px solid var(--ui-border-soft,#eff1f4)}
+.global-settings-section:last-child{border-bottom:0}
+.global-settings-section h3{margin:0 0 10px;color:var(--ui-text-strong,#242936);font-size:13px}
+.global-settings-section p,.settings-account-note,.settings-help{margin:6px 0 0;color:var(--ui-text-muted,#737987);font-size:11px;line-height:1.65}
+.settings-account-note button{display:inline-block;margin-left:5px;color:var(--ui-accent-strong,#5f55d9)}
+.settings-account-note[hidden],.settings-account-fields[hidden]{display:none}
+.settings-account-fields{display:flex;flex-direction:column;gap:10px}
+.settings-account-fields label,.settings-field{display:flex;flex-direction:column;gap:6px;color:var(--ui-text-muted,#737987);font-size:11px}
+.settings-account-fields input,.settings-field select{width:100%;min-height:40px;padding:8px 10px;border:1px solid var(--ui-border,#e6e9ee);border-radius:8px;background:var(--ui-input,#fff);color:var(--ui-input-text,#3f4552);font:inherit;font-size:12px}
+.settings-account-fields input[readonly]{opacity:.8}
+.settings-theme-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:0;border:0}
+.settings-theme-options legend{margin-bottom:8px;color:var(--ui-text-muted,#737987);font-size:11px}
+.settings-theme-options label{display:flex;align-items:center;gap:7px;min-height:42px;padding:8px;border:1px solid var(--ui-border,#e6e9ee);border-radius:9px;background:var(--ui-surface-soft,#fafbfc);color:var(--ui-text,#303440);font-size:11px;cursor:pointer}
+.settings-theme-options input,.settings-switch input{accent-color:#6256dd}
+.settings-switch{display:flex;align-items:flex-start;gap:9px;color:var(--ui-text,#303440);font-size:12px;cursor:pointer}
+.settings-switch input{margin-top:3px}
+.settings-switch span{display:flex;flex-direction:column;gap:4px}
+.settings-switch small{color:var(--ui-text-muted,#737987);font-size:10px}
+.settings-action-row,.settings-confirm-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+.settings-action-row button{flex:1 1 160px;min-height:40px}
+.settings-cloud-config{margin-top:8px;padding-left:0}
+.settings-danger-button{min-height:38px;padding:8px 12px;border:1px solid #e7b9bd;border-radius:8px;background:#fff4f4;color:#ad3e48;font:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.settings-danger-button:hover{background:#ffe9eb}
+.settings-about a{color:var(--ui-accent-strong,#5f55d9);font-size:11px}
+.global-settings-status{min-height:18px;margin:6px 0 0;color:var(--ui-text-muted,#737987);font-size:10px}
+.global-settings-status[data-state="success"]{color:#27835f}
+.global-settings-status[data-state="offline"]{color:#a76a17}
+.settings-confirm-dialog{width:min(100%,440px)}
+.settings-danger-icon{display:grid;place-items:center;background:#fff0f0;color:#ad3e48;font-weight:700}
+.settings-confirm-actions{justify-content:flex-end}
+.settings-confirm-actions button{min-width:120px}
+html[data-ui-theme="dark"] .settings-danger-button{border-color:#77454b;background:#492c31;color:#ffaaa4}
+html[data-ui-theme="dark"] .settings-danger-button:hover{background:#583239}
+html[data-ui-theme="dark"] .settings-danger-icon{background:#492c31;color:#ffaaa4}
+@media(max-width:560px){.global-settings-backdrop{align-items:end;padding:0}.global-settings-dialog{width:100%;max-height:92dvh;border-radius:18px 18px 0 0;padding:24px 19px max(18px,env(safe-area-inset-bottom))}.settings-theme-options{gap:5px}.settings-theme-options label{justify-content:center;padding:7px 4px;font-size:10px}.settings-action-row{flex-direction:column}.settings-action-row button{width:100%;flex-basis:auto}.settings-confirm-dialog{width:min(100%,440px);margin:auto 0;border-radius:18px;padding:26px 20px}.settings-confirm-actions{flex-direction:column-reverse}.settings-confirm-actions button{width:100%;min-height:44px}}

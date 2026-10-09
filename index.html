@@ -54,6 +54,7 @@
       <button class="secondary topbar-utility-button" id="shortcutHelpBtn" type="button" title="查看快捷键说明"><span aria-hidden="true">⌨</span><span>快捷键说明</span></button>
       <button class="secondary topbar-utility-button" id="versionHistoryBtn" type="button" title="查看脑图版本历史"><span aria-hidden="true">◷</span><span>历史版本</span></button>
       <button class="secondary pwa-install-button" id="installAppBtn" type="button">安装应用</button>
+      <button class="secondary" id="canvasSettingsBtn" type="button" title="全局设置" aria-label="全局设置" aria-haspopup="dialog" aria-controls="globalSettingsModal">⚙</button>
       <button class="share-btn" id="cloudBtn">☁ 云同步</button>
       <input type="file" id="fileInput" accept=".json,.md,.markdown,.txt,application/json,text/markdown,text/plain" hidden>
     </div>
@@ -82,7 +83,7 @@
         <button id="libraryTrashBtn" class="global-nav-item" type="button" title="查看云端回收站"><span class="global-nav-icon">▱</span><span>回收站</span></button>
       </nav>
       <div class="global-nav-spacer"></div>
-      <div class="global-nav-settings-wrap"><button id="librarySettingsBtn" class="global-nav-item global-nav-settings" type="button" aria-haspopup="true" aria-expanded="false"><span class="global-nav-icon">⚙</span><span>设置</span></button><div id="librarySettingsMenu" class="library-settings-menu" hidden><button id="openSupabaseSettings" type="button">☁ Supabase 云端配置</button></div></div>
+      <div class="global-nav-settings-wrap"><button id="librarySettingsBtn" class="global-nav-item global-nav-settings" type="button" aria-haspopup="dialog" aria-controls="globalSettingsModal"><span class="global-nav-icon">⚙</span><span>设置</span></button></div>
     </aside>
     <aside class="library-folder-sidebar">
       <header class="folder-sidebar-header">
@@ -94,7 +95,7 @@
         <button id="cloudRecycleEntry" class="folder-tree-select" type="button">▱ 云端回收站</button>
         <button id="localRecycleEntry" class="folder-tree-select" type="button">▱ 本地回收站</button>
       </div>
-      <div class="folder-sidebar-footer"><span>拾念 · 私人空间</span><button id="folderSidebarSettingsBtn" type="button" title="账号与同步设置">⚙</button></div>
+    <div class="folder-sidebar-footer"><span>拾念 · 私人空间</span><button id="folderSidebarSettingsBtn" type="button" title="全局设置" aria-label="全局设置" aria-controls="globalSettingsModal">⚙</button></div>
     </aside>
     <main class="library-main">
       <header class="library-main-header">
@@ -338,6 +339,65 @@
         <button class="secondary wide" id="signOutBtn">退出登录</button>
       </div>
       <p class="cloud-note" id="cloudNote"></p>
+    </section>
+  </div>
+  <div class="modal-backdrop global-settings-backdrop" id="globalSettingsModal" hidden>
+    <section class="cloud-dialog global-settings-dialog" role="dialog" aria-modal="true" aria-labelledby="globalSettingsTitle">
+      <button class="modal-close" id="closeGlobalSettings" type="button" aria-label="关闭设置">×</button>
+      <div class="dialog-icon" aria-hidden="true">⚙</div>
+      <h2 id="globalSettingsTitle">全局设置</h2>
+      <p class="dialog-copy">偏好设置会自动保存；默认项只影响之后新建的脑图。</p>
+      <div class="global-settings-scroll">
+        <section class="global-settings-section" aria-labelledby="settingsAccountHeading">
+          <h3 id="settingsAccountHeading">个人信息</h3>
+          <div id="settingsAccountGuest" class="settings-account-note">当前使用本地匿名模式，偏好仅保存在此浏览器。<button id="settingsSignInBtn" class="text-btn" type="button">登录或注册</button></div>
+          <div id="settingsAccountSignedIn" class="settings-account-fields" hidden>
+            <label>登录邮箱<input id="settingsAccountEmail" type="email" readonly></label>
+            <label>昵称<input id="settingsNickname" type="text" maxlength="40" autocomplete="nickname" placeholder="设置一个昵称"></label>
+            <button id="settingsSignOutBtn" class="settings-danger-button" type="button">退出登录</button>
+          </div>
+        </section>
+        <section class="global-settings-section" aria-labelledby="settingsAppearanceHeading">
+          <h3 id="settingsAppearanceHeading">外观设置</h3>
+          <fieldset class="settings-theme-options"><legend>主题模式</legend>
+            <label><input type="radio" name="settingsThemeMode" value="light"><span>浅色</span></label>
+            <label><input type="radio" name="settingsThemeMode" value="dark"><span>深色</span></label>
+            <label><input type="radio" name="settingsThemeMode" value="system"><span>跟随系统</span></label>
+          </fieldset>
+        </section>
+        <section class="global-settings-section" aria-labelledby="settingsMindmapHeading">
+          <h3 id="settingsMindmapHeading">思维导图默认配置</h3>
+          <label class="settings-field" for="settingsPasteStrategy">多行粘贴策略
+            <select id="settingsPasteStrategy"><option value="single_node">将多行文本粘贴到同一个节点</option><option value="confirm_split">识别多行时询问是否拆分子节点</option></select>
+          </label>
+        </section>
+        <section class="global-settings-section" aria-labelledby="settingsShareHeading">
+          <h3 id="settingsShareHeading">分享预设</h3>
+          <label class="settings-switch"><input id="settingsShareAllowExport" type="checkbox"><span><strong>新建分享默认允许导出</strong><small>每次分享仍可单独调整。</small></span></label>
+        </section>
+        <section class="global-settings-section" aria-labelledby="settingsDataHeading">
+          <h3 id="settingsDataHeading">数据存储</h3>
+          <p class="settings-help">清除此浏览器保存的本地脑图、离线草稿和偏好；云端脑图与账号登录不会删除。请先备份需要保留的本地专属内容。</p>
+          <div class="settings-action-row"><button id="clearLocalCacheBtn" class="secondary" type="button">清除本地缓存</button><button id="settingsMigrateBtn" class="secondary" type="button">迁移本地脑图至云端</button></div>
+          <button id="openSupabaseSettings" class="text-btn settings-cloud-config" type="button">Supabase 云端配置</button>
+        </section>
+        <section class="global-settings-section settings-about" aria-labelledby="settingsAboutHeading">
+          <h3 id="settingsAboutHeading">关于</h3>
+          <p>拾念思维导图 <span id="settingsVersion">版本 1.0.0</span></p>
+          <p>反馈邮箱：<span>待项目维护者配置</span></p>
+          <a id="settingsPrivacyLink" href="/privacy.html" target="_blank" rel="noopener">隐私说明</a>
+        </section>
+      </div>
+      <p id="globalSettingsStatus" class="global-settings-status" role="status" aria-live="polite"></p>
+    </section>
+  </div>
+  <div class="modal-backdrop settings-confirm-backdrop" id="clearCacheConfirmModal" hidden>
+    <section class="cloud-dialog settings-confirm-dialog" role="alertdialog" aria-modal="true" aria-labelledby="clearCacheConfirmTitle">
+      <button class="modal-close" id="closeClearCacheConfirm" type="button" aria-label="关闭确认">×</button>
+      <div class="dialog-icon settings-danger-icon" aria-hidden="true">!</div>
+      <h2 id="clearCacheConfirmTitle">清除本地数据？</h2>
+      <p class="dialog-copy">这会删除此浏览器中保存的本地脑图、临时草稿和偏好缓存。云端脑图不会删除；本地专属脑图无法从云端恢复。请确认已备份需要保留的本地内容。</p>
+      <div class="settings-confirm-actions"><button id="cancelClearLocalCache" class="secondary" type="button">取消</button><button id="confirmClearLocalCache" class="settings-danger-button" type="button">清除本地缓存</button></div>
     </section>
   </div>
   <div class="modal-backdrop" id="accountProfileModal" hidden>
