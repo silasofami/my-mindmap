@@ -1,2 +1,9 @@
-/* Netlify-style SPA fallback for direct /share/{id} visits. */
-/share/*  /index.html  200
+/manifest.webmanifest    /manifest.webmanifest    200
+/sw.js                   /sw.js                   200
+/icon.svg                /icon.svg                200
+/icon-192.png            /icon-192.png            200
+/icon-512.png            /icon-512.png            200
+/*.png                   /:splat.png              200
+/*.svg                   /:splat.svg              200
+/share/*                 /index.html              200
+/*                       /index.html              200
