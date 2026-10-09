@@ -1,24 +1,47 @@
-const CACHE_NAME = 'shinian-app-shell-v2';
+const APP_VERSION = '1.0.1';
+const CACHE_VERSION = 'mindmap-v1.0.1';
+const CACHE_NAME = `shinian-app-shell-${CACHE_VERSION}`;
+const APP_CACHE_PREFIXES = ['shinian-app-shell-', 'mindmap-app-shell-'];
 const APP_SHELL = [
   '/',
   '/index.html',
   '/style.css',
   '/app.js',
   '/supabase-public-config.js',
-  '/manifest.json',
+  '/manifest.webmanifest',
   '/icon.svg',
   '/icon-192.png',
   '/icon-512.png'
 ];
 
 self.addEventListener('install', event => {
-  event.waitUntil(caches.open(CACHE_NAME).then(cache => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
+  event.waitUntil((async () => {
+    const existingCaches = await caches.keys();
+    const isFirstInstall = !existingCaches.some(key => APP_CACHE_PREFIXES.some(prefix => key.startsWith(prefix)));
+    const cache = await caches.open(CACHE_NAME);
+    await cache.addAll(APP_SHELL);
+    // First install should control the app immediately. Updates wait until the user accepts.
+    if (isFirstInstall) await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', event => {
-  event.waitUntil(caches.keys().then(keys => Promise.all(
-    keys.filter(key => key.startsWith('shinian-') && key !== CACHE_NAME).map(key => caches.delete(key))
-  )).then(() => self.clients.claim()));
+  event.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys
+      .filter(key => APP_CACHE_PREFIXES.some(prefix => key.startsWith(prefix)) && key !== CACHE_NAME)
+      .map(key => caches.delete(key)));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('message', event => {
+  const message = event.data || {};
+  if (message.type === 'GET_APP_VERSION') {
+    event.ports?.[0]?.postMessage({ appVersion: APP_VERSION, cacheVersion: CACHE_VERSION });
+  } else if (message.type === 'ACTIVATE_UPDATE') {
+    event.waitUntil(self.skipWaiting());
+  }
 });
 
 self.addEventListener('fetch', event => {

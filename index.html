@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#4080ff">
   <title>拾念 · 思维导图</title>
-  <link rel="manifest" href="/manifest.json">
+  <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="style.css?v=20261008-sidebar-pointer-v1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.19.0/dist/katex.min.css" integrity="sha384-3rdsX6e5mueWyoweR9NIVmtEsUkokpBT/0ALqKKIBMr9j4qhHkaIkAcGgsE6uVlp" crossorigin="anonymous">
@@ -434,7 +434,97 @@
   <script defer src="app.js?v=20261008-sidebar-pointer-ghost-v2"></script>
   <script>
     if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-      window.addEventListener('load', () => navigator.serviceWorker.register('/sw.js').catch(error => console.warn('[pwa] Service Worker 注册失败', error)));
+      window.addEventListener('load', async () => {
+        const isHome = () => {
+          const library = document.getElementById('libraryView');
+          return !!library && !library.hidden && location.pathname === '/';
+        };
+        let registration;
+        let updatePrompt;
+        let reloadAfterUpdate = false;
+
+        const compareVersions = (left, right) => {
+          const a = String(left || '').split('.').map(Number);
+          const b = String(right || '').split('.').map(Number);
+          for (let i = 0; i < Math.max(a.length, b.length); i++) {
+            const delta = (a[i] || 0) - (b[i] || 0);
+            if (delta) return Math.sign(delta);
+          }
+          return 0;
+        };
+        const getWorkerVersion = worker => new Promise(resolve => {
+          if (!worker || !('MessageChannel' in window)) return resolve(null);
+          const channel = new MessageChannel();
+          const timeout = setTimeout(() => { channel.port1.close(); resolve(null); }, 700);
+          channel.port1.onmessage = event => {
+            clearTimeout(timeout);
+            channel.port1.close();
+            resolve(event.data?.appVersion || null);
+          };
+          worker.postMessage({ type: 'GET_APP_VERSION' }, [channel.port2]);
+        });
+        const showUpdatePrompt = async worker => {
+          if (!worker || !isHome()) return;
+          const nextVersion = await getWorkerVersion(worker);
+          const currentVersion = await getWorkerVersion(registration?.active);
+          if (nextVersion && currentVersion && compareVersions(nextVersion, currentVersion) <= 0) return;
+          if (!updatePrompt) {
+            const style = document.createElement('style');
+            style.textContent = '.pwa-update-prompt{position:fixed;z-index:10050;top:14px;left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--ui-border,#e6e9ee);border-radius:12px;background:var(--ui-surface,#fff);color:var(--ui-text,#303440);box-shadow:0 12px 36px #131a2a30;font:13px/1.45 system-ui,sans-serif}.pwa-update-prompt span{flex:1}.pwa-update-prompt button{border:0;border-radius:8px;padding:8px 12px;background:#6256dd;color:white;font:inherit;font-weight:600;cursor:pointer}.pwa-update-prompt .pwa-update-later{padding:7px;background:transparent;color:var(--ui-text-muted,#737987)}html[data-ui-theme="dark"] .pwa-update-prompt{background:var(--ui-surface,#222633);color:var(--ui-text,#edf0f7)}@media(max-width:520px){.pwa-update-prompt{top:auto;bottom:max(12px,env(safe-area-inset-bottom));align-items:flex-start;flex-wrap:wrap}.pwa-update-prompt span{flex-basis:100%}}';
+            document.head.append(style);
+            updatePrompt = document.createElement('aside');
+            updatePrompt.className = 'pwa-update-prompt';
+            updatePrompt.setAttribute('role', 'status');
+            updatePrompt.setAttribute('aria-live', 'polite');
+            const label = document.createElement('span');
+            label.textContent = '发现新版本，点击刷新更新应用';
+            const refresh = document.createElement('button');
+            refresh.type = 'button';
+            refresh.textContent = '刷新更新';
+            refresh.addEventListener('click', () => {
+              reloadAfterUpdate = true;
+              worker.postMessage({ type: 'ACTIVATE_UPDATE' });
+              refresh.disabled = true;
+              refresh.textContent = '正在更新…';
+            });
+            const later = document.createElement('button');
+            later.type = 'button';
+            later.className = 'pwa-update-later';
+            later.textContent = '稍后';
+            later.addEventListener('click', () => { updatePrompt?.remove(); updatePrompt = null; });
+            updatePrompt.append(label, refresh, later);
+          }
+          if (!updatePrompt.isConnected) document.body.append(updatePrompt);
+        };
+        const checkForUpdate = async () => {
+          if (!isHome() || !registration) return;
+          try {
+            await registration.update();
+            if (registration.waiting) await showUpdatePrompt(registration.waiting);
+          } catch (error) {
+            console.warn('[pwa] 检查应用更新失败', error);
+          }
+        };
+        try {
+          registration = await navigator.serviceWorker.register('/sw.js');
+          if (registration.waiting) void showUpdatePrompt(registration.waiting);
+          registration.addEventListener('updatefound', () => {
+            const installing = registration.installing;
+            installing?.addEventListener('statechange', () => {
+              if (installing.state === 'installed' && registration.waiting) void showUpdatePrompt(registration.waiting);
+            });
+          });
+          navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (reloadAfterUpdate) location.reload();
+          });
+          const library = document.getElementById('libraryView');
+          if (library) new MutationObserver(() => { if (isHome()) void checkForUpdate(); }).observe(library, { attributes: true, attributeFilter: ['hidden'] });
+          document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && isHome()) void checkForUpdate(); });
+          if (isHome()) void checkForUpdate();
+        } catch (error) {
+          console.warn('[pwa] Service Worker 注册失败', error);
+        }
+      });
     }
   </script>
 </body>
