@@ -5,7 +5,7 @@
   <base href="/">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#4080ff">
-  <script>const BASE_APP_VERSION = "1.0.6"; const APP_VERSION = "1.0.6"; window.BASE_APP_VERSION = BASE_APP_VERSION; window.onlineVersion = null;</script>
+  <script>const BASE_APP_VERSION = "1.0.6"; window.BASE_APP_VERSION = BASE_APP_VERSION; window.onlineVersion = null;</script>
   <title>拾念 · 思维导图</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -495,17 +495,16 @@
       const checkOnlineVersion = async () => {
         if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt) return;
         try {
-          const requestUrl = `/version.json?t=${Date.now()}`;
-          console.info('[pwa] 请求线上版本文件', requestUrl);
+          const requestUrl = `/?t=${Date.now()}`;
+          console.info('[pwa] 请求线上首页 HTML 提取版本', requestUrl);
           const response = await fetch(requestUrl, { cache: 'no-store' });
-          console.info('[pwa] version.json 响应', { ok: response.ok, status: response.status });
-          if (!response.ok) {
-            window.onlineVersion = null;
-            displaySettingsVersion(null);
-            throw new Error(`HTTP ${response.status}`);
-          }
-          const { version } = await response.json();
-          window.onlineVersion = typeof version === 'string' ? version : null;
+          console.info('[pwa] 首页 HTML 响应', { ok: response.ok, status: response.status });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const html = await response.text();
+          const versionMatch = html.match(/\bconst\s+BASE_APP_VERSION\s*=\s*["']([^"']+)["']/);
+          if (!versionMatch) throw new Error('首页 HTML 中未找到 BASE_APP_VERSION');
+          const version = versionMatch[1];
+          window.onlineVersion = version;
           displaySettingsVersion(window.onlineVersion);
           let acceptedVersion = BASE_APP_VERSION;
           try {
@@ -522,7 +521,7 @@
         } catch (error) {
           window.onlineVersion = null;
           displaySettingsVersion(null);
-          console.warn('[version.json请求失败，跳过版本检查]', { fallback: BASE_APP_VERSION, error: error?.message || error });
+          console.warn('[首页版本请求失败，跳过版本检查]', { fallback: BASE_APP_VERSION, error: error?.message || error });
         }
       };
 

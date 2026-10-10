@@ -53,10 +53,13 @@ let vercelProjectLink = null;
 const vercelProjectLinkPath = path.join(dist, '.vercel', 'project.json');
 try { vercelProjectLink = fs.readFileSync(vercelProjectLinkPath, 'utf8'); } catch {}
 const sourceIndex = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const baseVersionMatch = sourceIndex.match(/const APP_VERSION = "(\d+\.\d+\.\d+)";/);
-if (!baseVersionMatch) throw new Error('index.html must define const APP_VERSION = "x.y.z";');
+const baseVersionMatch = sourceIndex.match(/const BASE_APP_VERSION = "(\d+\.\d+\.\d+)";/);
+if (!baseVersionMatch) throw new Error('index.html must define const BASE_APP_VERSION = "x.y.z";');
 const previousBuildVersion = (() => {
-  try { return JSON.parse(fs.readFileSync(path.join(dist, 'version.json'), 'utf8')).version || ''; } catch { return ''; }
+  try {
+    const previousIndex = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
+    return previousIndex.match(/const BASE_APP_VERSION = "([^"]+)";/)?.[1] || '';
+  } catch { return ''; }
 })();
 const previousBuildTimestamp = Number(String(previousBuildVersion).match(/\+(\d+)$/)?.[1] || 0);
 const buildTimestamp = Math.max(Date.now(), previousBuildTimestamp + 1);
@@ -65,8 +68,13 @@ fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
 for (const name of files) fs.copyFileSync(path.join(root, name), path.join(dist, name));
 const distIndexPath = path.join(dist, 'index.html');
-fs.writeFileSync(path.join(dist, 'version.json'), `${JSON.stringify({ version: buildVersion }, null, 2)}\n`, 'utf8');
-const distVersionPath = path.join(dist, 'version.json');
+const copiedIndex = fs.readFileSync(distIndexPath, 'utf8');
+const builtHomepage = copiedIndex.replace(
+  /const BASE_APP_VERSION = "\d+\.\d+\.\d+";/,
+  `const BASE_APP_VERSION = ${JSON.stringify(buildVersion)};`
+);
+if (builtHomepage === copiedIndex) throw new Error('Could not inject the build version into dist/index.html.');
+fs.writeFileSync(distIndexPath, builtHomepage, 'utf8');
 const distSwPath = path.join(dist, 'sw.js');
 const distSw = fs.readFileSync(distSwPath, 'utf8').replace(
   /const CACHE_NAME = 'shinian-app-shell-v1';/,
@@ -85,31 +93,15 @@ fs.writeFileSync(path.join(dist, 'supabase-public-config.js'), publicConfig, 'ut
 
 if (!supabaseUrl || !anonKey) console.warn('Built without public Supabase config. Login can still use browser settings; public share previews need this config.');
 const builtIndex = fs.readFileSync(distIndexPath, 'utf8');
-const builtAppVersion = builtIndex.match(/const APP_VERSION = "([^"]+)";/)?.[1];
-if (!builtAppVersion || builtAppVersion !== baseVersionMatch[1]) {
-  throw new Error(`dist/index.html APP_VERSION mismatch: expected ${baseVersionMatch[1]}, got ${builtAppVersion || 'missing'}.`);
+const builtAppVersion = builtIndex.match(/const BASE_APP_VERSION = "([^"]+)";/)?.[1];
+if (!builtAppVersion || builtAppVersion !== buildVersion) {
+  throw new Error(`dist/index.html BASE_APP_VERSION mismatch: expected ${buildVersion}, got ${builtAppVersion || 'missing'}.`);
 }
 const distManifestPath = path.join(dist, 'manifest.webmanifest');
-if (!fs.existsSync(distVersionPath)) {
-  console.error(`Build error: required version file was not generated: ${distVersionPath}`);
-  throw new Error(`Build output is missing: ${distVersionPath}`);
-}
 if (!fs.existsSync(distManifestPath)) {
   console.error(`Build error: required manifest file was not copied: ${distManifestPath}`);
   throw new Error(`Build output is missing: ${distManifestPath}`);
 }
-let builtVersionContent;
-let builtOnlineVersion;
-try {
-  builtVersionContent = fs.readFileSync(distVersionPath, 'utf8');
-  builtOnlineVersion = JSON.parse(builtVersionContent).version;
-  if (typeof builtOnlineVersion !== 'string' || !builtOnlineVersion) throw new Error('version must be a non-empty string');
-} catch (error) {
-  console.error(`Build error: version file is unreadable or invalid: ${distVersionPath}`, error);
-  throw new Error(`Invalid build output at ${distVersionPath}: ${error.message}`);
-}
-console.log(`dist/index.html APP_VERSION: ${builtAppVersion}`);
-console.log(`dist/version.json version: ${builtOnlineVersion}`);
-console.log(`Generated version file: ${distVersionPath}`);
-console.log(`Generated version file content:\n${builtVersionContent.trim()}`);
+console.log(`dist/index.html BASE_APP_VERSION: ${builtAppVersion}`);
+console.log(`Build version injected into homepage: ${buildVersion}`);
 console.log(`Static app built: ${dist}`);
