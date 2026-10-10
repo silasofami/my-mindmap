@@ -55,16 +55,16 @@ try { vercelProjectLink = fs.readFileSync(vercelProjectLinkPath, 'utf8'); } catc
 const sourceIndex = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
 const baseVersionMatch = sourceIndex.match(/const APP_VERSION = "(\d+\.\d+\.\d+)";/);
 if (!baseVersionMatch) throw new Error('index.html must define const APP_VERSION = "x.y.z";');
-const buildVersion = `${baseVersionMatch[1]}+${Date.now()}`;
+const previousBuildVersion = (() => {
+  try { return JSON.parse(fs.readFileSync(path.join(dist, 'version.json'), 'utf8')).version || ''; } catch { return ''; }
+})();
+const previousBuildTimestamp = Number(String(previousBuildVersion).match(/\+(\d+)$/)?.[1] || 0);
+const buildTimestamp = Math.max(Date.now(), previousBuildTimestamp + 1);
+const buildVersion = `${baseVersionMatch[1]}+${buildTimestamp}`;
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
 for (const name of files) fs.copyFileSync(path.join(root, name), path.join(dist, name));
 const distIndexPath = path.join(dist, 'index.html');
-const distIndex = fs.readFileSync(distIndexPath, 'utf8').replace(
-  /const APP_VERSION = "\d+\.\d+\.\d+";/,
-  `const APP_VERSION = ${JSON.stringify(buildVersion)};`
-);
-fs.writeFileSync(distIndexPath, distIndex, 'utf8');
 fs.writeFileSync(path.join(dist, 'version.json'), `${JSON.stringify({ version: buildVersion }, null, 2)}\n`, 'utf8');
 const distSwPath = path.join(dist, 'sw.js');
 const distSw = fs.readFileSync(distSwPath, 'utf8').replace(
@@ -83,4 +83,12 @@ const publicConfig = `// Public browser configuration. Use only the Supabase ano
 fs.writeFileSync(path.join(dist, 'supabase-public-config.js'), publicConfig, 'utf8');
 
 if (!supabaseUrl || !anonKey) console.warn('Built without public Supabase config. Login can still use browser settings; public share previews need this config.');
+const builtIndex = fs.readFileSync(distIndexPath, 'utf8');
+const builtAppVersion = builtIndex.match(/const APP_VERSION = "([^"]+)";/)?.[1];
+if (!builtAppVersion || builtAppVersion !== baseVersionMatch[1]) {
+  throw new Error(`dist/index.html APP_VERSION mismatch: expected ${baseVersionMatch[1]}, got ${builtAppVersion || 'missing'}.`);
+}
+const builtOnlineVersion = JSON.parse(fs.readFileSync(path.join(dist, 'version.json'), 'utf8')).version;
+console.log(`dist/index.html APP_VERSION: ${builtAppVersion}`);
+console.log(`dist/version.json version: ${builtOnlineVersion}`);
 console.log(`Static app built: ${dist}`);
