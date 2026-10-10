@@ -33,15 +33,17 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('fetch', event => {
   const request = event.request;
-  if (request.method !== 'GET') return;
   const url = new URL(request.url);
-  if (url.origin !== self.location.origin) return;
 
-  // Bypass every service-worker cache path for version metadata.
-  if (url.pathname.endsWith('/version.json') || url.pathname === 'version.json') {
+  // Match pathname only so cache-busting query strings do not affect the bypass.
+  if (url.pathname === '/version.json') {
+    console.info('[sw] version.json直接透传网络', request.url);
     event.respondWith(fetch(request));
     return;
   }
+
+  if (request.method !== 'GET') return;
+  if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).catch(() => caches.match('/index.html')));
