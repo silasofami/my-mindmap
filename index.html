@@ -5,6 +5,7 @@
   <base href="/">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#4080ff">
+  <script>const APP_VERSION = "1.0.6";</script>
   <title>拾念 · 思维导图</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -433,164 +434,74 @@
   <script defer src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script defer src="app.js?v=20261008-sidebar-pointer-ghost-v2"></script>
   <script>
-    if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-      window.addEventListener('load', async () => {
-        const isHome = () => {
-          const library = document.getElementById('libraryView');
-          return !!library && !library.hidden && (location.pathname === '/' || location.pathname === '/index.html');
-        };
-        if (!isHome()) return;
-        let registration;
-        let updatePrompt;
-        let waitingWorker = null;
-        let reloadAfterUpdate = false;
-        let pollingTimer = null;
-        let pollingAttempts = 0;
-        let pollingFinished = false;
-        let pollInFlight = false;
-        let hasShownUpdatePrompt = false;
-        let updateCandidate = null;
+    if (location.protocol !== 'file:') {
+      const isHome = () => {
+        const library = document.getElementById('libraryView');
+        return !!library && !library.hidden && (location.pathname === '/' || location.pathname === '/index.html');
+      };
+      let hasShownUpdatePrompt = false;
 
-        const stopPolling = (reason, finished = false) => {
-          if (pollingTimer) clearTimeout(pollingTimer);
-          pollingTimer = null;
-          if (finished) pollingFinished = true;
-          console.info('[pwa] 停止更新轮询', { reason, attempts: pollingAttempts, finished: pollingFinished });
-        };
-        const isWaitingWorker = worker => !!worker && worker.state === 'installed' && registration?.waiting === worker;
-        const showUpdatePrompt = worker => {
-          if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt || !isWaitingWorker(worker)) return false;
-          hasShownUpdatePrompt = true;
-          waitingWorker = worker;
-          stopPolling('检测到 waiting worker，已显示更新提示', true);
-          if (!updatePrompt) {
-            const style = document.createElement('style');
-            style.textContent = '.pwa-update-prompt{position:fixed;z-index:10050;top:14px;left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--ui-border,#e6e9ee);border-radius:12px;background:var(--ui-surface,#fff);color:var(--ui-text,#303440);box-shadow:0 12px 36px #131a2a30;font:13px/1.45 system-ui,sans-serif}.pwa-update-prompt span{flex:1}.pwa-update-prompt button{border:0;border-radius:8px;padding:8px 12px;background:#6256dd;color:white;font:inherit;font-weight:600;cursor:pointer}.pwa-update-prompt .pwa-update-later{padding:7px;background:transparent;color:var(--ui-text-muted,#737987)}html[data-ui-theme="dark"] .pwa-update-prompt{background:var(--ui-surface,#222633);color:var(--ui-text,#edf0f7)}@media(max-width:520px){.pwa-update-prompt{top:auto;bottom:max(12px,env(safe-area-inset-bottom));align-items:flex-start;flex-wrap:wrap}.pwa-update-prompt span{flex-basis:100%}}';
-            document.head.append(style);
-            updatePrompt = document.createElement('aside');
-            updatePrompt.className = 'pwa-update-prompt';
-            updatePrompt.setAttribute('role', 'status');
-            updatePrompt.setAttribute('aria-live', 'polite');
-            const label = document.createElement('span');
-            label.textContent = '发现新版本，点击刷新更新应用';
-            const refresh = document.createElement('button');
-            refresh.type = 'button';
-            refresh.textContent = '刷新更新';
-            refresh.addEventListener('click', () => {
-              reloadAfterUpdate = true;
-              waitingWorker?.postMessage({ type: 'ACTIVATE_UPDATE' });
-              refresh.disabled = true;
-              refresh.textContent = '正在更新…';
-            });
-            const later = document.createElement('button');
-            later.type = 'button';
-            later.className = 'pwa-update-later';
-            later.textContent = '稍后';
-            later.addEventListener('click', () => {
-              hasShownUpdatePrompt = true;
-              console.info('[pwa] 用户选择稍后更新；waiting worker 保持不变', { hasShownUpdatePrompt, waiting: !!registration?.waiting });
-              updatePrompt?.remove();
-              updatePrompt = null;
-            });
-            updatePrompt.append(label, refresh, later);
-          }
-          if (!updatePrompt.isConnected) document.body.append(updatePrompt);
-          return true;
-        };
-        const checkWaiting = () => {
-          const worker = registration?.waiting;
-          if (worker) {
-            console.info('[pwa] 检测到 registration.waiting', { state: worker.state });
-            return showUpdatePrompt(worker);
-          }
-          return false;
-        };
-        const runUpdatePoll = async () => {
-          pollingTimer = null;
-          if (pollingFinished || !isHome()) return;
-          if (navigator.onLine === false) {
-            console.info('[pwa] 离线状态，跳过更新轮询');
-            return;
-          }
-          if (pollInFlight || pollingAttempts >= 5) {
-            if (pollingAttempts >= 5) stopPolling('达到 5 次轮询上限', true);
-            return;
-          }
-          pollInFlight = true;
-          pollingAttempts++;
-          console.info('[pwa] 执行更新轮询', { attempt: pollingAttempts, max: 5 });
-          try {
-            await registration.update();
-          } catch (error) {
-            console.info('[pwa] 本次更新检查未完成', error?.message || error);
-          }
-          pollInFlight = false;
-          const worker = registration.waiting;
-          console.info('[pwa] 更新轮询结果', { attempt: pollingAttempts, waiting: !!worker, state: worker?.state || 'none' });
-          if (worker && showUpdatePrompt(worker)) return;
-          if (updateCandidate?.state === 'activated') {
-            stopPolling('新 Service Worker 已激活', true);
-            return;
-          }
-          if (pollingAttempts >= 5) {
-            stopPolling('达到 5 次轮询上限', true);
-            return;
-          }
-          if (isHome() && navigator.onLine !== false && !pollingFinished) pollingTimer = setTimeout(runUpdatePoll, 3000);
-        };
-        const startUpdatePolling = () => {
-          if (pollingFinished || pollingTimer || pollInFlight || !registration || !isHome()) return;
-          if (navigator.onLine === false) {
-            console.info('[pwa] 离线状态，不启动更新轮询');
-            return;
-          }
-          if (checkWaiting()) return;
-          if (pollingAttempts >= 5) {
-            stopPolling('达到 5 次轮询上限', true);
-            return;
-          }
-          console.info('[pwa] 开始更新轮询', { intervalMs: 3000, maxAttempts: 5, completedAttempts: pollingAttempts });
-          pollingTimer = setTimeout(runUpdatePoll, 3000);
-        };
+      const compareVersions = (left, right) => {
+        const parts = value => String(value).split(/[.+-]/).map(part => /^\d+$/.test(part) ? Number(part) : 0);
+        const a = parts(left);
+        const b = parts(right);
+        for (let i = 0; i < Math.max(a.length, b.length); i++) {
+          const difference = (a[i] || 0) - (b[i] || 0);
+          if (difference) return difference > 0 ? 1 : -1;
+        }
+        return 0;
+      };
+
+      const showUpdatePrompt = onlineVersion => {
+        if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt) return;
+        hasShownUpdatePrompt = true;
+        console.info('[pwa] 更新可用', { current: APP_VERSION, online: onlineVersion });
+        const style = document.createElement('style');
+        style.textContent = '.pwa-update-prompt{position:fixed;z-index:10050;top:14px;left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--ui-border,#e6e9ee);border-radius:12px;background:var(--ui-surface,#fff);color:var(--ui-text,#303440);box-shadow:0 12px 36px #131a2a30;font:13px/1.45 system-ui,sans-serif}.pwa-update-prompt span{flex:1}.pwa-update-prompt button{border:0;border-radius:8px;padding:8px 12px;background:#6256dd;color:white;font:inherit;font-weight:600;cursor:pointer}.pwa-update-prompt .pwa-update-later{padding:7px;background:transparent;color:var(--ui-text-muted,#737987)}html[data-ui-theme="dark"] .pwa-update-prompt{background:var(--ui-surface,#222633);color:var(--ui-text,#edf0f7)}@media(max-width:520px){.pwa-update-prompt{top:auto;bottom:max(12px,env(safe-area-inset-bottom));align-items:flex-start;flex-wrap:wrap}.pwa-update-prompt span{flex-basis:100%}}';
+        document.head.append(style);
+        const prompt = document.createElement('aside');
+        prompt.className = 'pwa-update-prompt';
+        prompt.setAttribute('role', 'status');
+        prompt.setAttribute('aria-live', 'polite');
+        const label = document.createElement('span');
+        label.textContent = '发现新版本，点击刷新更新应用';
+        const refresh = document.createElement('button');
+        refresh.type = 'button';
+        refresh.textContent = '刷新更新';
+        refresh.addEventListener('click', () => {
+          refresh.disabled = true;
+          refresh.textContent = '正在刷新…';
+          window.location.reload(true);
+        });
+        const later = document.createElement('button');
+        later.type = 'button';
+        later.className = 'pwa-update-later';
+        later.textContent = '稍后';
+        later.addEventListener('click', () => prompt.remove());
+        prompt.append(label, refresh, later);
+        document.body.append(prompt);
+      };
+
+      const checkOnlineVersion = async () => {
+        if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt) return;
         try {
-          registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
-          console.info('[pwa] Service Worker 注册成功', { scope: registration.scope });
-          // A worker may already be waiting by the time this page finishes loading.
-          console.info('[pwa] 首页启动状态', { hasShownUpdatePrompt, waiting: !!registration.waiting, waitingState: registration.waiting?.state || 'none', online: navigator.onLine !== false });
-          if (navigator.onLine !== false && registration.waiting) console.info('[pwa] 注册完成时发现 waiting Service Worker');
-          if (navigator.onLine !== false) checkWaiting();
-          else console.info('[pwa] 离线状态，跳过 waiting 检查');
-          registration.addEventListener('updatefound', () => {
-            console.info('[pwa] updatefound：检测到新的 Service Worker');
-            updateCandidate = registration.installing;
-            if (!updateCandidate) return;
-            const newWorker = updateCandidate;
-            console.info('[pwa] 新 Service Worker 初始状态', newWorker.state);
-            newWorker.addEventListener('statechange', () => {
-              console.info('[pwa] 新 Service Worker 状态切换', newWorker.state);
-              // The ServiceWorker state is "installed" while Registration.waiting exposes it as the waiting worker.
-              if (newWorker.state === 'installed' && registration.waiting === newWorker) {
-                console.info('[pwa] 新 Service Worker 已安装并等待激活');
-                showUpdatePrompt(newWorker);
-              } else if (newWorker.state === 'activated') {
-                stopPolling('新 Service Worker 已激活', true);
-              }
-            });
-          });
-          navigator.serviceWorker.addEventListener('controllerchange', () => {
-            stopPolling('controllerchange');
-            if (reloadAfterUpdate) window.location.reload();
-          });
-          const library = document.getElementById('libraryView');
-          if (library) new MutationObserver(() => {
-            if (isHome()) startUpdatePolling();
-            else stopPolling('离开首页，暂停更新轮询');
-          }).observe(library, { attributes: true, attributeFilter: ['hidden'] });
-          document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && isHome()) startUpdatePolling(); });
-          window.addEventListener('online', () => { if (isHome()) startUpdatePolling(); });
-          if (isHome()) startUpdatePolling();
-        } catch {}
-      });
+          const response = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+          if (!response.ok) return;
+          const { version } = await response.json();
+          console.info('[pwa] 版本检查完成', { current: APP_VERSION, online: version });
+          if (typeof version === 'string' && compareVersions(version, APP_VERSION) > 0) showUpdatePrompt(version);
+        } catch (error) {
+          console.info('[pwa] 版本检查跳过', error?.message || error);
+        }
+      };
+
+      window.addEventListener('load', () => {
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
+        }
+        if (isHome() && navigator.onLine !== false) void checkOnlineVersion();
+      }, { once: true });
+      window.addEventListener('online', () => { if (isHome()) void checkOnlineVersion(); });
     }
   </script>
 </body>

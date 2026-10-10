@@ -52,9 +52,27 @@ for (const name of files) {
 let vercelProjectLink = null;
 const vercelProjectLinkPath = path.join(dist, '.vercel', 'project.json');
 try { vercelProjectLink = fs.readFileSync(vercelProjectLinkPath, 'utf8'); } catch {}
+const sourceIndex = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+const baseVersionMatch = sourceIndex.match(/const APP_VERSION = "(\d+\.\d+\.\d+)";/);
+if (!baseVersionMatch) throw new Error('index.html must define const APP_VERSION = "x.y.z";');
+const buildVersion = `${baseVersionMatch[1]}+${Date.now()}`;
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
 for (const name of files) fs.copyFileSync(path.join(root, name), path.join(dist, name));
+const distIndexPath = path.join(dist, 'index.html');
+const distIndex = fs.readFileSync(distIndexPath, 'utf8').replace(
+  /const APP_VERSION = "\d+\.\d+\.\d+";/,
+  `const APP_VERSION = ${JSON.stringify(buildVersion)};`
+);
+fs.writeFileSync(distIndexPath, distIndex, 'utf8');
+fs.writeFileSync(path.join(dist, 'version.json'), `${JSON.stringify({ version: buildVersion }, null, 2)}\n`, 'utf8');
+const distSwPath = path.join(dist, 'sw.js');
+const distSw = fs.readFileSync(distSwPath, 'utf8').replace(
+  /const CACHE_NAME = 'shinian-app-shell-v1';/,
+  `const CACHE_NAME = ${JSON.stringify(`shinian-app-shell-${buildVersion}`)};`
+);
+if (distSw === fs.readFileSync(distSwPath, 'utf8')) throw new Error('sw.js cache name placeholder was not found.');
+fs.writeFileSync(distSwPath, distSw, 'utf8');
 if (vercelProjectLink) {
   const linkDir = path.join(dist, '.vercel');
   fs.mkdirSync(linkDir, { recursive: true });

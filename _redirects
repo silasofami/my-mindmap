@@ -1,5 +1,6 @@
 /manifest.webmanifest    /manifest.webmanifest    200
 /sw.js                   /sw.js                   200
+/version.json            /version.json            200
 /icon.svg                /icon.svg                200
 /icon-192.png            /icon-192.png            200
 /icon-512.png            /icon-512.png            200

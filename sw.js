@@ -1,12 +1,10 @@
-// v1.0.5 test after fix later bug
-
-const APP_VERSION = '1.0.2';
-const CACHE_VERSION = 'mindmap-v1.0.2';
-const CACHE_NAME = `shinian-app-shell-${CACHE_VERSION}`;
+// The build script replaces this cache name with a unique value for every deployment.
+const CACHE_NAME = 'shinian-app-shell-v1';
 const APP_CACHE_PREFIXES = ['shinian-app-shell-', 'mindmap-app-shell-'];
 const APP_SHELL = [
   '/',
   '/index.html',
+  '/version.json',
   '/style.css',
   '/app.js',
   '/supabase-public-config.js',
@@ -18,12 +16,9 @@ const APP_SHELL = [
 
 self.addEventListener('install', event => {
   event.waitUntil((async () => {
-    const existingCaches = await caches.keys();
-    const isFirstInstall = !existingCaches.some(key => APP_CACHE_PREFIXES.some(prefix => key.startsWith(prefix)));
     const cache = await caches.open(CACHE_NAME);
     await cache.addAll(APP_SHELL);
-    // First install should control the app immediately. Updates wait until the user accepts.
-    if (isFirstInstall) await self.skipWaiting();
+    await self.skipWaiting();
   })());
 });
 
@@ -37,32 +32,33 @@ self.addEventListener('activate', event => {
   })());
 });
 
-self.addEventListener('message', event => {
-  const message = event.data || {};
-  if (message.type === 'GET_APP_VERSION') {
-    event.ports?.[0]?.postMessage({ appVersion: APP_VERSION, cacheVersion: CACHE_VERSION });
-  } else if (message.type === 'ACTIVATE_UPDATE') {
-    event.waitUntil(self.skipWaiting());
-  }
-});
-
 self.addEventListener('fetch', event => {
   const request = event.request;
   if (request.method !== 'GET') return;
   const url = new URL(request.url);
-  // Never intercept Supabase APIs, CDN libraries, or other cross-origin traffic.
   if (url.origin !== self.location.origin) return;
+
+  // Version checks must always reach the host and must never use a cached response.
+  if (url.pathname === '/version.json') {
+    event.respondWith(fetch(new Request(request, { cache: 'no-store' })));
+    return;
+  }
 
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).catch(() => caches.match('/index.html')));
     return;
   }
 
-  event.respondWith(caches.match(request, { ignoreSearch: true }).then(cached => cached || fetch(request).then(response => {
+  // Prefer current deployed assets while online; use the app shell cache only offline.
+  event.respondWith(fetch(request).then(response => {
     if (response.ok && response.type === 'basic') {
       const copy = response.clone();
-      caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
+      void caches.open(CACHE_NAME).then(cache => cache.put(request, copy));
     }
     return response;
-  })));
+  }).catch(async () => {
+    const cached = await caches.match(request, { ignoreSearch: true });
+    if (cached) return cached;
+    throw new Error(`Offline resource unavailable: ${url.pathname}`);
+  }));
 });
