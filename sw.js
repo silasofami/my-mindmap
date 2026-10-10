@@ -37,9 +37,9 @@ self.addEventListener('fetch', event => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
-  // Version checks must always reach the host and must never use a cached response.
-  if (url.pathname === '/version.json') {
-    event.respondWith(fetch(new Request(request, { cache: 'no-store' })));
+  // Bypass every service-worker cache path for version metadata.
+  if (url.pathname.endsWith('/version.json') || url.pathname === 'version.json') {
+    event.respondWith(fetch(request));
     return;
   }
 
