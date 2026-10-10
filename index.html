@@ -502,8 +502,7 @@
           if (!response.ok) {
             window.onlineVersion = null;
             displaySettingsVersion(null);
-            console.info('[pwa] 版本文件请求失败，使用基础版本', { status: response.status, fallback: BASE_APP_VERSION });
-            return;
+            throw new Error(`HTTP ${response.status}`);
           }
           const { version } = await response.json();
           window.onlineVersion = typeof version === 'string' ? version : null;
@@ -523,7 +522,7 @@
         } catch (error) {
           window.onlineVersion = null;
           displaySettingsVersion(null);
-          console.info('[pwa] 版本检查失败，设置使用基础版本', { fallback: BASE_APP_VERSION, error: error?.message || error });
+          console.warn('[version.json请求失败，跳过版本检查]', { fallback: BASE_APP_VERSION, error: error?.message || error });
         }
       };
 

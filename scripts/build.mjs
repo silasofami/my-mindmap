@@ -66,6 +66,7 @@ fs.mkdirSync(dist, { recursive: true });
 for (const name of files) fs.copyFileSync(path.join(root, name), path.join(dist, name));
 const distIndexPath = path.join(dist, 'index.html');
 fs.writeFileSync(path.join(dist, 'version.json'), `${JSON.stringify({ version: buildVersion }, null, 2)}\n`, 'utf8');
+const distVersionPath = path.join(dist, 'version.json');
 const distSwPath = path.join(dist, 'sw.js');
 const distSw = fs.readFileSync(distSwPath, 'utf8').replace(
   /const CACHE_NAME = 'shinian-app-shell-v1';/,
@@ -88,7 +89,11 @@ const builtAppVersion = builtIndex.match(/const APP_VERSION = "([^"]+)";/)?.[1];
 if (!builtAppVersion || builtAppVersion !== baseVersionMatch[1]) {
   throw new Error(`dist/index.html APP_VERSION mismatch: expected ${baseVersionMatch[1]}, got ${builtAppVersion || 'missing'}.`);
 }
-const builtOnlineVersion = JSON.parse(fs.readFileSync(path.join(dist, 'version.json'), 'utf8')).version;
+const distManifestPath = path.join(dist, 'manifest.webmanifest');
+if (!fs.existsSync(distVersionPath)) throw new Error(`Build output is missing: ${distVersionPath}`);
+if (!fs.existsSync(distManifestPath)) throw new Error(`Build output is missing: ${distManifestPath}`);
+const builtOnlineVersion = JSON.parse(fs.readFileSync(distVersionPath, 'utf8')).version;
 console.log(`dist/index.html APP_VERSION: ${builtAppVersion}`);
 console.log(`dist/version.json version: ${builtOnlineVersion}`);
+console.log(`Generated version file: ${distVersionPath}`);
 console.log(`Static app built: ${dist}`);
