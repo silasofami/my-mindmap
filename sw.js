@@ -1,3 +1,5 @@
+// test v1.0.4 test polling update
+
 const APP_VERSION = '1.0.2';
 const CACHE_VERSION = 'mindmap-v1.0.2';
 const CACHE_NAME = `shinian-app-shell-${CACHE_VERSION}`;
