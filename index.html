@@ -1,11 +1,14 @@
 <!doctype html>
 <html lang="zh-CN">
 <head>
+  <script>
+    window.BASE_APP_VERSION = "1.0.6";
+    window.onlineVersion = null;
+  </script>
   <meta charset="utf-8">
   <base href="/">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#4080ff">
-  <script>window.BASE_APP_VERSION = "1.0.6"; window.onlineVersion = null;</script>
   <title>拾念 · 思维导图</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -494,15 +497,25 @@
 
       const checkOnlineVersion = async () => {
         if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt) return;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        const runMode = isStandalone ? 'PWA 桌面独立模式' : '网页模式';
+        let html = '';
+        let responseStatus = null;
+        console.info('[版本检测启动]', { environment: runMode, baseVersion: window.BASE_APP_VERSION });
         try {
           const requestUrl = `/?check_version=1&t=${Date.now()}`;
           console.info('[pwa] 请求线上首页 HTML 提取版本', requestUrl);
           const response = await fetch(requestUrl, { cache: 'no-store' });
-          console.info('[pwa] 首页 HTML 响应', { ok: response.ok, status: response.status });
+          responseStatus = response.status;
+          html = await response.text();
+          console.info('[pwa] 首页 HTML 响应完成', { status: response.status, htmlLength: html.length });
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const html = await response.text();
-          const versionMatch = html.match(/\bwindow\.BASE_APP_VERSION\s*=\s*["']([^"']+)["']/);
-          if (!versionMatch) throw new Error('首页 HTML 中未找到 window.BASE_APP_VERSION');
+          const versionMatch = html.match(/window\.BASE_APP_VERSION\s*=\s*["']([^"'\s]+)["']/);
+          console.info('[pwa] 线上版本提取结果', { onlineVersion: versionMatch?.[1] || null, match: versionMatch?.[0] || null });
+          if (!versionMatch) {
+            console.warn('[pwa] 提取线上版本失败，首页 HTML 前 500 个字符：', html.slice(0, 500));
+            throw new Error('首页 HTML 中未找到 window.BASE_APP_VERSION');
+          }
           const version = versionMatch[1];
           window.onlineVersion = version;
           displaySettingsVersion(window.onlineVersion);
@@ -514,7 +527,7 @@
           }
           const shouldPrompt = compareVersions(version, window.BASE_APP_VERSION) > 0
             && compareVersions(version, acceptedVersion) > 0;
-          console.info('[pwa] 版本检查完成', { online: version, baseAppVersion: window.BASE_APP_VERSION, acceptedVersion, shouldPrompt });
+          console.info('[pwa] 最终版本判断', { environment: runMode, onlineVersion: version, baseVersion: window.BASE_APP_VERSION, acceptedVersion, shouldPrompt });
           if (typeof version === 'string'
             && shouldPrompt) {
             showUpdatePrompt(version);
@@ -522,7 +535,14 @@
         } catch (error) {
           window.onlineVersion = null;
           displaySettingsVersion(null);
-          console.warn('[首页版本请求失败，跳过版本检查]', { fallback: window.BASE_APP_VERSION, error: error?.message || error });
+          console.warn('[首页版本请求/解析失败，跳过版本检查]', {
+            environment: runMode,
+            status: responseStatus,
+            fallback: window.BASE_APP_VERSION,
+            error: error?.message || error,
+            stack: error?.stack || null,
+            htmlPreview: html ? html.slice(0, 500) : null
+          });
         }
       };
 
