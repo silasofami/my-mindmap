@@ -514,20 +514,21 @@
       const requestWorkerVersion = registration => {
         const worker = registration?.active || navigator.serviceWorker?.controller;
         if (worker && worker.state === 'activated') {
+          console.info('[pwa] 向 Service Worker 查询版本');
           worker.postMessage({ type: 'GET_VERSION' });
         }
       };
-
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.addEventListener('message', event => {
-          if (event.data?.type === 'VERSION_UPDATE') handleWorkerVersion(event.data.version);
-        });
-      }
 
       let startupHandled = false;
       const onAppDomReady = async () => {
         if (startupHandled) return;
         startupHandled = true;
+        if ('serviceWorker' in navigator) {
+          navigator.serviceWorker.addEventListener('message', event => {
+            if (event.data?.type === 'VERSION_UPDATE') handleWorkerVersion(event.data.version);
+          });
+          console.info('[pwa] Service Worker message 监听注册完成');
+        }
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
         const runMode = isStandalone ? 'PWA 桌面独立模式' : '网页模式';
         console.info('[pwa] 启动环境', { mode: runMode, standalone: isStandalone, home: isHome(), online: navigator.onLine !== false });
@@ -536,11 +537,13 @@
             serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
             const registration = serviceWorkerRegistration;
             console.info('[pwa] Service Worker 注册成功');
-            if (isStandalone && navigator.onLine !== false) {
+            if (navigator.onLine !== false) {
               await navigator.serviceWorker.ready;
-              console.info('[pwa] 桌面 PWA Service Worker 已就绪');
+              console.info('[pwa] Service Worker ready 已就绪', { mode: runMode });
+              requestWorkerVersion(registration);
+            } else {
+              console.info('[pwa] 当前离线，跳过 Service Worker 版本查询');
             }
-            requestWorkerVersion(registration);
           } catch (error) {
             console.info('[pwa] Service Worker 注册失败，跳过版本检测', error?.message || error);
           }

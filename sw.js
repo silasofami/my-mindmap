@@ -39,6 +39,7 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('message', event => {
   if (event.data?.type === 'GET_VERSION') {
+    console.info('[SW] 收到版本查询');
     event.source?.postMessage({ type: 'VERSION_UPDATE', version: APP_VERSION });
   }
 });
