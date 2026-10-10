@@ -524,7 +524,13 @@
         }
       };
 
-      window.addEventListener('load', () => {
+      let startupHandled = false;
+      const onAppDomReady = () => {
+        if (startupHandled) return;
+        startupHandled = true;
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+        const runMode = isStandalone ? 'PWA 桌面独立模式' : '网页模式';
+        console.info('[pwa] 启动环境', { mode: runMode, standalone: isStandalone, home: isHome(), online: navigator.onLine !== false });
         if ('serviceWorker' in navigator) {
           navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
         }
@@ -532,9 +538,21 @@
         else if (navigator.onLine === false) {
           window.onlineVersion = null;
           displaySettingsVersion(null);
+          console.info('[pwa] 离线启动，跳过版本检测', { mode: runMode, fallback: BASE_APP_VERSION });
         }
-      }, { once: true });
-      window.addEventListener('online', () => { if (isHome()) void checkOnlineVersion(); });
+      };
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', onAppDomReady, { once: true });
+      } else {
+        queueMicrotask(onAppDomReady);
+      }
+      window.addEventListener('online', () => {
+        if (isHome()) {
+          const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
+          console.info('[pwa] 网络恢复，重新检查版本', { mode: isStandalone ? 'PWA 桌面独立模式' : '网页模式' });
+          void checkOnlineVersion();
+        }
+      });
     }
   </script>
 </body>
