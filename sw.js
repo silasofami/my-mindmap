@@ -62,3 +62,8 @@ self.addEventListener('fetch', event => {
     throw new Error(`Offline resource unavailable: ${url.pathname}`);
   }));
 });
+
+// test v1.0.7 test polling update
+
+
+
