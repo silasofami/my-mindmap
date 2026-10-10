@@ -462,7 +462,7 @@
       const showUpdatePrompt = onlineVersion => {
         if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt) return;
         hasShownUpdatePrompt = true;
-        console.info('[pwa] 更新可用', { current: window.BASE_APP_VERSION, online: onlineVersion });
+        console.info('[pwa] 更新可用', { online: onlineVersion });
         const style = document.createElement('style');
         style.textContent = '.pwa-update-prompt{position:fixed;z-index:10050;top:14px;left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--ui-border,#e6e9ee);border-radius:12px;background:var(--ui-surface,#fff);color:var(--ui-text,#303440);box-shadow:0 12px 36px #131a2a30;font:13px/1.45 system-ui,sans-serif}.pwa-update-prompt span{flex:1}.pwa-update-prompt button{border:0;border-radius:8px;padding:8px 12px;background:#6256dd;color:white;font:inherit;font-weight:600;cursor:pointer}.pwa-update-prompt .pwa-update-later{padding:7px;background:transparent;color:var(--ui-text-muted,#737987)}html[data-ui-theme="dark"] .pwa-update-prompt{background:var(--ui-surface,#222633);color:var(--ui-text,#edf0f7)}@media(max-width:520px){.pwa-update-prompt{top:auto;bottom:max(12px,env(safe-area-inset-bottom));align-items:flex-start;flex-wrap:wrap}.pwa-update-prompt span{flex-basis:100%}}';
         document.head.append(style);
@@ -494,57 +494,35 @@
         document.body.append(prompt);
       };
 
-      const checkOnlineVersion = async () => {
-        if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt) return;
-        const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-        const runMode = isStandalone ? 'PWA 桌面独立模式' : '网页模式';
-        let html = '';
-        let responseStatus = null;
-        console.info('[版本检测启动]', { environment: runMode, baseVersion: window.BASE_APP_VERSION });
+      const handleWorkerVersion = version => {
+        if (typeof version !== 'string' || !version.trim()) return;
+        window.onlineVersion = version;
+        displaySettingsVersion(version);
+        console.info('[收到版本更新]', version);
+        let acceptedVersion = '';
         try {
-          const requestUrl = `/?check_version=1&t=${Date.now()}`;
-          console.info('[pwa] 请求线上首页 HTML 提取版本', requestUrl);
-          const response = await fetch(requestUrl, { cache: 'no-store' });
-          responseStatus = response.status;
-          html = await response.text();
-          console.info('[pwa] 首页 HTML 响应完成', { status: response.status, htmlLength: html.length });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const versionMatch = html.match(/window\.BASE_APP_VERSION\s*=\s*["']([^"']+)["']/);
-          console.info('[pwa] 线上版本提取结果', { onlineVersion: versionMatch?.[1] || null, match: versionMatch?.[0] || null });
-          if (!versionMatch) {
-            console.warn('[pwa] 提取线上版本失败', { htmlLength: html.length, htmlPreview: html.slice(0, 800) });
-            throw new Error('首页 HTML 中未找到 window.BASE_APP_VERSION');
-          }
-          const version = versionMatch[1];
-          window.onlineVersion = version;
-          displaySettingsVersion(window.onlineVersion);
-          let acceptedVersion = window.BASE_APP_VERSION;
-          try {
-            acceptedVersion = localStorage.getItem(acceptedVersionStorageKey) || window.BASE_APP_VERSION;
-          } catch (error) {
-            console.warn('[pwa] 无法读取已确认版本，按基础版本比较', error?.message || error);
-          }
-          const shouldPrompt = compareVersions(version, window.BASE_APP_VERSION) > 0
-            && compareVersions(version, acceptedVersion) > 0;
-          console.info('[pwa] 最终版本判断', { environment: runMode, onlineVersion: version, baseVersion: window.BASE_APP_VERSION, acceptedVersion, shouldPrompt });
-          if (typeof version === 'string'
-            && shouldPrompt) {
-            showUpdatePrompt(version);
-          }
+          acceptedVersion = localStorage.getItem(acceptedVersionStorageKey) || '';
         } catch (error) {
-          window.onlineVersion = null;
-          displaySettingsVersion(null);
-          console.warn('[首页版本请求/解析失败，跳过版本检查]', {
-            environment: runMode,
-            status: responseStatus,
-            fallback: window.BASE_APP_VERSION,
-            error: error?.message || error,
-            stack: error?.stack || null,
-            htmlLength: html.length,
-            htmlPreview: html ? html.slice(0, 800) : null
-          });
+          console.warn('[pwa] 无法读取已确认版本', error?.message || error);
+        }
+        const shouldPrompt = compareVersions(version, acceptedVersion || '0.0.0') > 0;
+        console.info('[pwa] 弹窗判断结果', { version, acceptedVersion: acceptedVersion || null, shouldPrompt });
+        if (shouldPrompt) showUpdatePrompt(version);
+      };
+
+      let serviceWorkerRegistration = null;
+      const requestWorkerVersion = registration => {
+        const worker = registration?.active || navigator.serviceWorker?.controller;
+        if (worker && worker.state === 'activated') {
+          worker.postMessage({ type: 'GET_VERSION' });
         }
       };
+
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', event => {
+          if (event.data?.type === 'VERSION_UPDATE') handleWorkerVersion(event.data.version);
+        });
+      }
 
       let startupHandled = false;
       const onAppDomReady = async () => {
@@ -553,29 +531,21 @@
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
         const runMode = isStandalone ? 'PWA 桌面独立模式' : '网页模式';
         console.info('[pwa] 启动环境', { mode: runMode, standalone: isStandalone, home: isHome(), online: navigator.onLine !== false });
-        let registrationPromise = null;
         if ('serviceWorker' in navigator) {
-          registrationPromise = navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
-          registrationPromise.catch(error => console.info('[pwa] Service Worker 注册失败', error?.message || error));
-        }
-        if (isHome() && navigator.onLine !== false) {
-          if (isStandalone && 'serviceWorker' in navigator) {
-            try {
-              if (registrationPromise) await registrationPromise;
-              console.info('[pwa] 等待桌面 PWA Service Worker 就绪');
+          try {
+            serviceWorkerRegistration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+            const registration = serviceWorkerRegistration;
+            console.info('[pwa] Service Worker 注册成功');
+            if (isStandalone && navigator.onLine !== false) {
               await navigator.serviceWorker.ready;
               console.info('[pwa] 桌面 PWA Service Worker 已就绪');
-            } catch (error) {
-              console.info('[pwa] 桌面 PWA Service Worker 未就绪，跳过版本检测', error?.message || error);
-              return;
             }
+            requestWorkerVersion(registration);
+          } catch (error) {
+            console.info('[pwa] Service Worker 注册失败，跳过版本检测', error?.message || error);
           }
-          void checkOnlineVersion();
-        }
-        else if (navigator.onLine === false) {
-          window.onlineVersion = null;
-          displaySettingsVersion(null);
-          console.info('[pwa] 离线启动，跳过版本检测', { mode: runMode, fallback: window.BASE_APP_VERSION });
+        } else {
+          console.info('[pwa] 当前环境不支持 Service Worker，跳过版本检测');
         }
       };
       window.addEventListener('load', () => {
@@ -587,16 +557,9 @@
         queueMicrotask(onAppDomReady);
       }
       window.addEventListener('online', () => {
-        if (isHome()) {
-          const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
-          console.info('[pwa] 网络恢复，重新检查版本', { mode: isStandalone ? 'PWA 桌面独立模式' : '网页模式' });
-          if (isStandalone && 'serviceWorker' in navigator) {
-            void navigator.serviceWorker.ready.then(() => {
-              console.info('[pwa] 网络恢复后 Service Worker 已就绪');
-              return checkOnlineVersion();
-            }).catch(error => console.info('[pwa] 等待 Service Worker 失败', error?.message || error));
-          } else void checkOnlineVersion();
-        }
+        if (!('serviceWorker' in navigator)) return;
+        if (serviceWorkerRegistration) requestWorkerVersion(serviceWorkerRegistration);
+        else void navigator.serviceWorker.ready.then(requestWorkerVersion).catch(() => {});
       });
     }
   </script>

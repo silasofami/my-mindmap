@@ -77,11 +77,17 @@ const builtHomepage = copiedIndex.replace(
 if (builtHomepage === copiedIndex) throw new Error('Could not inject the build version into dist/index.html.');
 fs.writeFileSync(distIndexPath, builtHomepage, 'utf8');
 const distSwPath = path.join(dist, 'sw.js');
-const distSw = fs.readFileSync(distSwPath, 'utf8').replace(
+const copiedSw = fs.readFileSync(distSwPath, 'utf8');
+const versionedSw = copiedSw.replace(
+  /const APP_VERSION = "\d+\.\d+\.\d+(?:\+\d+)?";/,
+  `const APP_VERSION = ${JSON.stringify(buildVersion)};`
+);
+if (versionedSw === copiedSw) throw new Error('sw.js APP_VERSION placeholder was not found.');
+const distSw = versionedSw.replace(
   /const CACHE_NAME = 'shinian-app-shell-v1';/,
   `const CACHE_NAME = ${JSON.stringify(`shinian-app-shell-${buildVersion}`)};`
 );
-if (distSw === fs.readFileSync(distSwPath, 'utf8')) throw new Error('sw.js cache name placeholder was not found.');
+if (distSw === versionedSw) throw new Error('sw.js cache name placeholder was not found.');
 fs.writeFileSync(distSwPath, distSw, 'utf8');
 if (vercelProjectLink) {
   const linkDir = path.join(dist, '.vercel');
@@ -101,11 +107,17 @@ if (!builtAppVersion || builtAppVersion !== buildVersion) {
 if (!/<head>\s*<meta charset="utf-8">\s*<script>\s*window\.BASE_APP_VERSION\s*=\s*"[^"]+";\s*<\/script>/i.test(builtIndex)) {
   throw new Error('dist/index.html must expose window.BASE_APP_VERSION in the first script immediately after charset.');
 }
+const builtSw = fs.readFileSync(distSwPath, 'utf8');
+const builtSwVersion = builtSw.match(/^const APP_VERSION = "([^"]+)";/)?.[1];
+if (builtSwVersion !== buildVersion) {
+  throw new Error(`dist/sw.js APP_VERSION mismatch: expected ${buildVersion}, got ${builtSwVersion || 'missing'}.`);
+}
 const distManifestPath = path.join(dist, 'manifest.webmanifest');
 if (!fs.existsSync(distManifestPath)) {
   console.error(`Build error: required manifest file was not copied: ${distManifestPath}`);
   throw new Error(`Build output is missing: ${distManifestPath}`);
 }
 console.log(`dist/index.html window.BASE_APP_VERSION: ${builtAppVersion}`);
+console.log(`dist/sw.js APP_VERSION: ${builtSwVersion}`);
 console.log(`Build version injected into homepage: ${buildVersion}`);
 console.log(`Static app built: ${dist}`);

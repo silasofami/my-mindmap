@@ -1,3 +1,4 @@
+const APP_VERSION = "1.0.6";
 // The build script replaces this cache name with a unique value for every deployment.
 const CACHE_NAME = 'shinian-app-shell-v1';
 const APP_CACHE_PREFIXES = ['shinian-app-shell-', 'mindmap-app-shell-'];
@@ -28,19 +29,23 @@ self.addEventListener('activate', event => {
       .filter(key => APP_CACHE_PREFIXES.some(prefix => key.startsWith(prefix)) && key !== CACHE_NAME)
       .map(key => caches.delete(key)));
     await self.clients.claim();
+    console.info('[SW激活] 当前版本', APP_VERSION);
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clients) {
+      client.postMessage({ type: 'VERSION_UPDATE', version: APP_VERSION });
+    }
   })());
+});
+
+self.addEventListener('message', event => {
+  if (event.data?.type === 'GET_VERSION') {
+    event.source?.postMessage({ type: 'VERSION_UPDATE', version: APP_VERSION });
+  }
 });
 
 self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
-
-  // Bypass cache handling for explicit version checks, regardless of other URL params.
-  if (url.searchParams.get('check_version') === '1') {
-    console.info('[sw] check_version=1 直接透传网络', request.url);
-    event.respondWith(fetch(request));
-    return;
-  }
 
   if (request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
