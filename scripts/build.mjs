@@ -53,8 +53,9 @@ let vercelProjectLink = null;
 const vercelProjectLinkPath = path.join(dist, '.vercel', 'project.json');
 try { vercelProjectLink = fs.readFileSync(vercelProjectLinkPath, 'utf8'); } catch {}
 const sourceIndex = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const baseVersionMatch = sourceIndex.match(/window\.BASE_APP_VERSION\s*=\s*"(\d+\.\d+\.\d+)"\s*;/);
-if (!baseVersionMatch) throw new Error('index.html must define window.BASE_APP_VERSION = "x.y.z";');
+const versionDeclarationPattern = /(<meta charset="utf-8">\s*<script>\s*window\.BASE_APP_VERSION\s*=\s*")(\d+\.\d+\.\d+)(";\s*<\/script>)/;
+const baseVersionMatch = sourceIndex.match(versionDeclarationPattern);
+if (!baseVersionMatch) throw new Error('index.html must put the standalone BASE_APP_VERSION script immediately after the charset meta tag.');
 const previousBuildVersion = (() => {
   try {
     const previousIndex = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
@@ -63,15 +64,15 @@ const previousBuildVersion = (() => {
 })();
 const previousBuildTimestamp = Number(String(previousBuildVersion).match(/\+(\d+)$/)?.[1] || 0);
 const buildTimestamp = Math.max(Date.now(), previousBuildTimestamp + 1);
-const buildVersion = `${baseVersionMatch[1]}+${buildTimestamp}`;
+const buildVersion = `${baseVersionMatch[2]}+${buildTimestamp}`;
 fs.rmSync(dist, { recursive: true, force: true });
 fs.mkdirSync(dist, { recursive: true });
 for (const name of files) fs.copyFileSync(path.join(root, name), path.join(dist, name));
 const distIndexPath = path.join(dist, 'index.html');
 const copiedIndex = fs.readFileSync(distIndexPath, 'utf8');
 const builtHomepage = copiedIndex.replace(
-  /window\.BASE_APP_VERSION\s*=\s*"\d+\.\d+\.\d+"\s*;/,
-  `window.BASE_APP_VERSION = ${JSON.stringify(buildVersion)};`
+  versionDeclarationPattern,
+  (_match, prefix, _version, suffix) => `${prefix}${buildVersion}${suffix}`
 );
 if (builtHomepage === copiedIndex) throw new Error('Could not inject the build version into dist/index.html.');
 fs.writeFileSync(distIndexPath, builtHomepage, 'utf8');
@@ -96,6 +97,9 @@ const builtIndex = fs.readFileSync(distIndexPath, 'utf8');
 const builtAppVersion = builtIndex.match(/window\.BASE_APP_VERSION\s*=\s*"([^"]+)"\s*;/)?.[1];
 if (!builtAppVersion || builtAppVersion !== buildVersion) {
   throw new Error(`dist/index.html window.BASE_APP_VERSION mismatch: expected ${buildVersion}, got ${builtAppVersion || 'missing'}.`);
+}
+if (!/<head>\s*<meta charset="utf-8">\s*<script>\s*window\.BASE_APP_VERSION\s*=\s*"[^"]+";\s*<\/script>/i.test(builtIndex)) {
+  throw new Error('dist/index.html must expose window.BASE_APP_VERSION in the first script immediately after charset.');
 }
 const distManifestPath = path.join(dist, 'manifest.webmanifest');
 if (!fs.existsSync(distManifestPath)) {
