@@ -1,6 +1,6 @@
-const APP_VERSION = "1.0.6";
 // The build script replaces this cache name with a unique value for every deployment.
 const CACHE_NAME = 'shinian-app-shell-v1';
+const APP_VERSION = "1.0.6";
 const APP_CACHE_PREFIXES = ['shinian-app-shell-', 'mindmap-app-shell-'];
 const APP_SHELL = [
   '/',
@@ -39,8 +39,9 @@ self.addEventListener('activate', event => {
 
 self.addEventListener('message', event => {
   if (event.data?.type === 'GET_VERSION') {
-    console.info('[SW] 收到版本查询');
+    console.info('[收到版本查询]', APP_VERSION);
     event.source?.postMessage({ type: 'VERSION_UPDATE', version: APP_VERSION });
+    console.info('[已回复版本]', APP_VERSION);
   }
 });
 

@@ -108,9 +108,12 @@ if (!/<head>\s*<meta charset="utf-8">\s*<script>\s*window\.BASE_APP_VERSION\s*=\
   throw new Error('dist/index.html must expose window.BASE_APP_VERSION in the first script immediately after charset.');
 }
 const builtSw = fs.readFileSync(distSwPath, 'utf8');
-const builtSwVersion = builtSw.match(/^const APP_VERSION = "([^"]+)";/)?.[1];
+const builtSwVersion = builtSw.match(/const APP_VERSION = "([^"]+)";/)?.[1];
 if (builtSwVersion !== buildVersion) {
   throw new Error(`dist/sw.js APP_VERSION mismatch: expected ${buildVersion}, got ${builtSwVersion || 'missing'}.`);
+}
+if (!/const CACHE_NAME = "[^\"]+";\s*const APP_VERSION = "[^"]+";/.test(builtSw)) {
+  throw new Error('dist/sw.js must place APP_VERSION immediately after CACHE_NAME.');
 }
 const distManifestPath = path.join(dist, 'manifest.webmanifest');
 if (!fs.existsSync(distManifestPath)) {

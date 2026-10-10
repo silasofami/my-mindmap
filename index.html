@@ -498,7 +498,7 @@
         if (typeof version !== 'string' || !version.trim()) return;
         window.onlineVersion = version;
         displaySettingsVersion(version);
-        console.info('[收到版本更新]', version);
+        console.info('[收到版本]', version);
         let acceptedVersion = '';
         try {
           acceptedVersion = localStorage.getItem(acceptedVersionStorageKey) || '';
@@ -512,9 +512,9 @@
 
       let serviceWorkerRegistration = null;
       const requestWorkerVersion = registration => {
-        const worker = registration?.active || navigator.serviceWorker?.controller;
+        const worker = navigator.serviceWorker?.controller || registration?.active;
         if (worker && worker.state === 'activated') {
-          console.info('[pwa] 向 Service Worker 查询版本');
+          console.info('[已发送版本查询]', { workerState: worker.state });
           worker.postMessage({ type: 'GET_VERSION' });
         }
       };
