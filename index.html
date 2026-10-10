@@ -5,7 +5,7 @@
   <base href="/">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#4080ff">
-  <script>const APP_VERSION = "1.0.6";</script>
+  <script>const BASE_APP_VERSION = "1.0.6"; const APP_VERSION = "1.0.6"; window.BASE_APP_VERSION = BASE_APP_VERSION; window.onlineVersion = null;</script>
   <title>拾念 · 思维导图</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -384,7 +384,7 @@
         </section>
         <section class="global-settings-section settings-about" aria-labelledby="settingsAboutHeading">
           <h3 id="settingsAboutHeading">关于</h3>
-          <p>拾念思维导图 <span id="settingsVersion">版本 1.0.0</span></p>
+          <p>拾念思维导图 <span id="settingsVersion">版本 1.0.6</span></p>
           <p>反馈邮箱：<span>待项目维护者配置</span></p>
           <a id="settingsPrivacyLink" href="/privacy.html" target="_blank" rel="noopener">隐私说明</a>
         </section>
@@ -441,6 +441,10 @@
       };
       let hasShownUpdatePrompt = false;
       const acceptedVersionStorageKey = 'mindmap_last_accepted_version';
+      const displaySettingsVersion = version => {
+        const label = document.getElementById('settingsVersion');
+        if (label) label.textContent = `版本 ${version || BASE_APP_VERSION}`;
+      };
 
       const compareVersions = (left, right) => {
         const parts = value => String(value).split(/[.+-]/).map(part => /^\d+$/.test(part) ? Number(part) : 0);
@@ -456,7 +460,7 @@
       const showUpdatePrompt = onlineVersion => {
         if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt) return;
         hasShownUpdatePrompt = true;
-        console.info('[pwa] 更新可用', { current: APP_VERSION, online: onlineVersion });
+        console.info('[pwa] 更新可用', { current: BASE_APP_VERSION, online: onlineVersion });
         const style = document.createElement('style');
         style.textContent = '.pwa-update-prompt{position:fixed;z-index:10050;top:14px;left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--ui-border,#e6e9ee);border-radius:12px;background:var(--ui-surface,#fff);color:var(--ui-text,#303440);box-shadow:0 12px 36px #131a2a30;font:13px/1.45 system-ui,sans-serif}.pwa-update-prompt span{flex:1}.pwa-update-prompt button{border:0;border-radius:8px;padding:8px 12px;background:#6256dd;color:white;font:inherit;font-weight:600;cursor:pointer}.pwa-update-prompt .pwa-update-later{padding:7px;background:transparent;color:var(--ui-text-muted,#737987)}html[data-ui-theme="dark"] .pwa-update-prompt{background:var(--ui-surface,#222633);color:var(--ui-text,#edf0f7)}@media(max-width:520px){.pwa-update-prompt{top:auto;bottom:max(12px,env(safe-area-inset-bottom));align-items:flex-start;flex-wrap:wrap}.pwa-update-prompt span{flex-basis:100%}}';
         document.head.append(style);
@@ -492,22 +496,31 @@
         if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt) return;
         try {
           const response = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
-          if (!response.ok) return;
-          const { version } = await response.json();
-          let acceptedVersion = APP_VERSION;
-          try {
-            acceptedVersion = localStorage.getItem(acceptedVersionStorageKey) || APP_VERSION;
-          } catch (error) {
-            console.warn('[pwa] 无法读取已确认版本，按当前源码版本比较', error?.message || error);
+          if (!response.ok) {
+            window.onlineVersion = null;
+            displaySettingsVersion(null);
+            console.info('[pwa] 版本文件请求失败，使用基础版本', { status: response.status, fallback: BASE_APP_VERSION });
+            return;
           }
-          console.info('[pwa] 版本检查完成', { online: version, appVersion: APP_VERSION, acceptedVersion });
+          const { version } = await response.json();
+          window.onlineVersion = typeof version === 'string' ? version : null;
+          displaySettingsVersion(window.onlineVersion);
+          let acceptedVersion = BASE_APP_VERSION;
+          try {
+            acceptedVersion = localStorage.getItem(acceptedVersionStorageKey) || BASE_APP_VERSION;
+          } catch (error) {
+            console.warn('[pwa] 无法读取已确认版本，按基础版本比较', error?.message || error);
+          }
+          console.info('[pwa] 版本检查完成', { online: version, baseAppVersion: BASE_APP_VERSION, acceptedVersion });
           if (typeof version === 'string'
-            && compareVersions(version, APP_VERSION) > 0
+            && compareVersions(version, BASE_APP_VERSION) > 0
             && compareVersions(version, acceptedVersion) > 0) {
             showUpdatePrompt(version);
           }
         } catch (error) {
-          console.info('[pwa] 版本检查跳过', error?.message || error);
+          window.onlineVersion = null;
+          displaySettingsVersion(null);
+          console.info('[pwa] 版本检查失败，设置使用基础版本', { fallback: BASE_APP_VERSION, error: error?.message || error });
         }
       };
 
@@ -516,6 +529,10 @@
           navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
         }
         if (isHome() && navigator.onLine !== false) void checkOnlineVersion();
+        else if (navigator.onLine === false) {
+          window.onlineVersion = null;
+          displaySettingsVersion(null);
+        }
       }, { once: true });
       window.addEventListener('online', () => { if (isHome()) void checkOnlineVersion(); });
     }
