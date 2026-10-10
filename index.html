@@ -444,9 +444,25 @@
         let updatePrompt;
         let waitingWorker = null;
         let reloadAfterUpdate = false;
+        let pollingTimer = null;
+        let pollingAttempts = 0;
+        let pollingFinished = false;
+        let pollInFlight = false;
+        let promptShown = false;
+        let updateCandidate = null;
+
+        const stopPolling = (reason, finished = false) => {
+          if (pollingTimer) clearTimeout(pollingTimer);
+          pollingTimer = null;
+          if (finished) pollingFinished = true;
+          console.info('[pwa] 停止更新轮询', { reason, attempts: pollingAttempts, finished: pollingFinished });
+        };
+        const isWaitingWorker = worker => !!worker && worker.state === 'installed' && registration?.waiting === worker;
         const showUpdatePrompt = worker => {
-          if (!worker || !isHome()) return;
+          if (!isHome() || promptShown || !isWaitingWorker(worker)) return false;
+          promptShown = true;
           waitingWorker = worker;
+          stopPolling('检测到 waiting worker，已显示更新提示', true);
           if (!updatePrompt) {
             const style = document.createElement('style');
             style.textContent = '.pwa-update-prompt{position:fixed;z-index:10050;top:14px;left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--ui-border,#e6e9ee);border-radius:12px;background:var(--ui-surface,#fff);color:var(--ui-text,#303440);box-shadow:0 12px 36px #131a2a30;font:13px/1.45 system-ui,sans-serif}.pwa-update-prompt span{flex:1}.pwa-update-prompt button{border:0;border-radius:8px;padding:8px 12px;background:#6256dd;color:white;font:inherit;font-weight:600;cursor:pointer}.pwa-update-prompt .pwa-update-later{padding:7px;background:transparent;color:var(--ui-text-muted,#737987)}html[data-ui-theme="dark"] .pwa-update-prompt{background:var(--ui-surface,#222633);color:var(--ui-text,#edf0f7)}@media(max-width:520px){.pwa-update-prompt{top:auto;bottom:max(12px,env(safe-area-inset-bottom));align-items:flex-start;flex-wrap:wrap}.pwa-update-prompt span{flex-basis:100%}}';
@@ -474,46 +490,98 @@
             updatePrompt.append(label, refresh, later);
           }
           if (!updatePrompt.isConnected) document.body.append(updatePrompt);
+          return true;
         };
-        const checkForUpdate = async () => {
-          if (!isHome() || !registration) return;
+        const checkWaiting = () => {
+          const worker = registration?.waiting;
+          if (worker) {
+            console.info('[pwa] 检测到 registration.waiting', { state: worker.state });
+            return showUpdatePrompt(worker);
+          }
+          return false;
+        };
+        const runUpdatePoll = async () => {
+          pollingTimer = null;
+          if (pollingFinished || !isHome()) return;
+          if (navigator.onLine === false) {
+            console.info('[pwa] 离线状态，跳过更新轮询');
+            return;
+          }
+          if (pollInFlight || pollingAttempts >= 5) {
+            if (pollingAttempts >= 5) stopPolling('达到 5 次轮询上限', true);
+            return;
+          }
+          pollInFlight = true;
+          pollingAttempts++;
+          console.info('[pwa] 执行更新轮询', { attempt: pollingAttempts, max: 5 });
           try {
             await registration.update();
-            if (registration.waiting) {
-              console.info('[pwa] 检查到等待中的新版 Service Worker');
-              showUpdatePrompt(registration.waiting);
-            }
-          } catch {}
+          } catch (error) {
+            console.info('[pwa] 本次更新检查未完成', error?.message || error);
+          }
+          pollInFlight = false;
+          const worker = registration.waiting;
+          console.info('[pwa] 更新轮询结果', { attempt: pollingAttempts, waiting: !!worker, state: worker?.state || 'none' });
+          if (worker && showUpdatePrompt(worker)) return;
+          if (updateCandidate?.state === 'activated') {
+            stopPolling('新 Service Worker 已激活', true);
+            return;
+          }
+          if (pollingAttempts >= 5) {
+            stopPolling('达到 5 次轮询上限', true);
+            return;
+          }
+          if (isHome() && navigator.onLine !== false && !pollingFinished) pollingTimer = setTimeout(runUpdatePoll, 3000);
+        };
+        const startUpdatePolling = () => {
+          if (pollingFinished || pollingTimer || pollInFlight || !registration || !isHome()) return;
+          if (navigator.onLine === false) {
+            console.info('[pwa] 离线状态，不启动更新轮询');
+            return;
+          }
+          if (checkWaiting()) return;
+          if (pollingAttempts >= 5) {
+            stopPolling('达到 5 次轮询上限', true);
+            return;
+          }
+          console.info('[pwa] 开始更新轮询', { intervalMs: 3000, maxAttempts: 5, completedAttempts: pollingAttempts });
+          pollingTimer = setTimeout(runUpdatePoll, 3000);
         };
         try {
           registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
           console.info('[pwa] Service Worker 注册成功', { scope: registration.scope });
           // A worker may already be waiting by the time this page finishes loading.
-          if (registration.waiting) {
-            console.info('[pwa] 注册完成时发现 waiting Service Worker');
-            showUpdatePrompt(registration.waiting);
-          }
+          if (registration.waiting) console.info('[pwa] 注册完成时发现 waiting Service Worker');
+          if (checkWaiting()) return;
           registration.addEventListener('updatefound', () => {
             console.info('[pwa] updatefound：检测到新的 Service Worker');
-            const installing = registration.installing;
-            if (!installing) return;
-            console.info('[pwa] 新 Service Worker 初始状态', installing.state);
-            installing.addEventListener('statechange', () => {
-              console.info('[pwa] 新 Service Worker 状态切换', installing.state);
+            updateCandidate = registration.installing;
+            if (!updateCandidate) return;
+            const newWorker = updateCandidate;
+            console.info('[pwa] 新 Service Worker 初始状态', newWorker.state);
+            newWorker.addEventListener('statechange', () => {
+              console.info('[pwa] 新 Service Worker 状态切换', newWorker.state);
               // The ServiceWorker state is "installed" while Registration.waiting exposes it as the waiting worker.
-              if (installing.state === 'installed' && registration.waiting === installing) {
+              if (newWorker.state === 'installed' && registration.waiting === newWorker) {
                 console.info('[pwa] 新 Service Worker 已安装并等待激活');
-                showUpdatePrompt(installing);
+                showUpdatePrompt(newWorker);
+              } else if (newWorker.state === 'activated') {
+                stopPolling('新 Service Worker 已激活', true);
               }
             });
           });
           navigator.serviceWorker.addEventListener('controllerchange', () => {
-            if (reloadAfterUpdate) location.reload();
+            stopPolling('controllerchange');
+            if (reloadAfterUpdate) window.location.reload();
           });
           const library = document.getElementById('libraryView');
-          if (library) new MutationObserver(() => { if (isHome()) void checkForUpdate(); }).observe(library, { attributes: true, attributeFilter: ['hidden'] });
-          document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && isHome()) void checkForUpdate(); });
-          if (isHome()) void checkForUpdate();
+          if (library) new MutationObserver(() => {
+            if (isHome()) startUpdatePolling();
+            else stopPolling('离开首页，暂停更新轮询');
+          }).observe(library, { attributes: true, attributeFilter: ['hidden'] });
+          document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && isHome()) startUpdatePolling(); });
+          window.addEventListener('online', () => { if (isHome()) startUpdatePolling(); });
+          if (isHome()) startUpdatePolling();
         } catch {}
       });
     }
