@@ -90,10 +90,26 @@ if (!builtAppVersion || builtAppVersion !== baseVersionMatch[1]) {
   throw new Error(`dist/index.html APP_VERSION mismatch: expected ${baseVersionMatch[1]}, got ${builtAppVersion || 'missing'}.`);
 }
 const distManifestPath = path.join(dist, 'manifest.webmanifest');
-if (!fs.existsSync(distVersionPath)) throw new Error(`Build output is missing: ${distVersionPath}`);
-if (!fs.existsSync(distManifestPath)) throw new Error(`Build output is missing: ${distManifestPath}`);
-const builtOnlineVersion = JSON.parse(fs.readFileSync(distVersionPath, 'utf8')).version;
+if (!fs.existsSync(distVersionPath)) {
+  console.error(`Build error: required version file was not generated: ${distVersionPath}`);
+  throw new Error(`Build output is missing: ${distVersionPath}`);
+}
+if (!fs.existsSync(distManifestPath)) {
+  console.error(`Build error: required manifest file was not copied: ${distManifestPath}`);
+  throw new Error(`Build output is missing: ${distManifestPath}`);
+}
+let builtVersionContent;
+let builtOnlineVersion;
+try {
+  builtVersionContent = fs.readFileSync(distVersionPath, 'utf8');
+  builtOnlineVersion = JSON.parse(builtVersionContent).version;
+  if (typeof builtOnlineVersion !== 'string' || !builtOnlineVersion) throw new Error('version must be a non-empty string');
+} catch (error) {
+  console.error(`Build error: version file is unreadable or invalid: ${distVersionPath}`, error);
+  throw new Error(`Invalid build output at ${distVersionPath}: ${error.message}`);
+}
 console.log(`dist/index.html APP_VERSION: ${builtAppVersion}`);
 console.log(`dist/version.json version: ${builtOnlineVersion}`);
 console.log(`Generated version file: ${distVersionPath}`);
+console.log(`Generated version file content:\n${builtVersionContent.trim()}`);
 console.log(`Static app built: ${dist}`);
