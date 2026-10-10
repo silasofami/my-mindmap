@@ -437,7 +437,7 @@
       window.addEventListener('load', async () => {
         const isHome = () => {
           const library = document.getElementById('libraryView');
-          return !!library && !library.hidden && location.pathname === '/';
+          return !!library && !library.hidden && (location.pathname === '/' || location.pathname === '/index.html');
         };
         if (!isHome()) return;
         let registration;
@@ -448,7 +448,7 @@
         let pollingAttempts = 0;
         let pollingFinished = false;
         let pollInFlight = false;
-        let promptShown = false;
+        let hasShownUpdatePrompt = false;
         let updateCandidate = null;
 
         const stopPolling = (reason, finished = false) => {
@@ -459,8 +459,8 @@
         };
         const isWaitingWorker = worker => !!worker && worker.state === 'installed' && registration?.waiting === worker;
         const showUpdatePrompt = worker => {
-          if (!isHome() || promptShown || !isWaitingWorker(worker)) return false;
-          promptShown = true;
+          if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt || !isWaitingWorker(worker)) return false;
+          hasShownUpdatePrompt = true;
           waitingWorker = worker;
           stopPolling('检测到 waiting worker，已显示更新提示', true);
           if (!updatePrompt) {
@@ -486,7 +486,12 @@
             later.type = 'button';
             later.className = 'pwa-update-later';
             later.textContent = '稍后';
-            later.addEventListener('click', () => { updatePrompt?.remove(); updatePrompt = null; });
+            later.addEventListener('click', () => {
+              hasShownUpdatePrompt = true;
+              console.info('[pwa] 用户选择稍后更新；waiting worker 保持不变', { hasShownUpdatePrompt, waiting: !!registration?.waiting });
+              updatePrompt?.remove();
+              updatePrompt = null;
+            });
             updatePrompt.append(label, refresh, later);
           }
           if (!updatePrompt.isConnected) document.body.append(updatePrompt);
@@ -551,8 +556,10 @@
           registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
           console.info('[pwa] Service Worker 注册成功', { scope: registration.scope });
           // A worker may already be waiting by the time this page finishes loading.
-          if (registration.waiting) console.info('[pwa] 注册完成时发现 waiting Service Worker');
-          if (checkWaiting()) return;
+          console.info('[pwa] 首页启动状态', { hasShownUpdatePrompt, waiting: !!registration.waiting, waitingState: registration.waiting?.state || 'none', online: navigator.onLine !== false });
+          if (navigator.onLine !== false && registration.waiting) console.info('[pwa] 注册完成时发现 waiting Service Worker');
+          if (navigator.onLine !== false) checkWaiting();
+          else console.info('[pwa] 离线状态，跳过 waiting 检查');
           registration.addEventListener('updatefound', () => {
             console.info('[pwa] updatefound：检测到新的 Service Worker');
             updateCandidate = registration.installing;
