@@ -4,7 +4,6 @@ const APP_CACHE_PREFIXES = ['shinian-app-shell-', 'mindmap-app-shell-'];
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/version.json',
   '/style.css',
   '/app.js',
   '/supabase-public-config.js',

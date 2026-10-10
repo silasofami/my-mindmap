@@ -495,7 +495,10 @@
       const checkOnlineVersion = async () => {
         if (!isHome() || navigator.onLine === false || hasShownUpdatePrompt) return;
         try {
-          const response = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+          const requestUrl = `/version.json?t=${Date.now()}`;
+          console.info('[pwa] 请求线上版本文件', requestUrl);
+          const response = await fetch(requestUrl, { cache: 'no-store' });
+          console.info('[pwa] version.json 响应', { ok: response.ok, status: response.status });
           if (!response.ok) {
             window.onlineVersion = null;
             displaySettingsVersion(null);
@@ -525,16 +528,31 @@
       };
 
       let startupHandled = false;
-      const onAppDomReady = () => {
+      const onAppDomReady = async () => {
         if (startupHandled) return;
         startupHandled = true;
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
         const runMode = isStandalone ? 'PWA 桌面独立模式' : '网页模式';
         console.info('[pwa] 启动环境', { mode: runMode, standalone: isStandalone, home: isHome(), online: navigator.onLine !== false });
+        let registrationPromise = null;
         if ('serviceWorker' in navigator) {
-          navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).catch(() => {});
+          registrationPromise = navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+          registrationPromise.catch(error => console.info('[pwa] Service Worker 注册失败', error?.message || error));
         }
-        if (isHome() && navigator.onLine !== false) void checkOnlineVersion();
+        if (isHome() && navigator.onLine !== false) {
+          if (isStandalone && 'serviceWorker' in navigator) {
+            try {
+              if (registrationPromise) await registrationPromise;
+              console.info('[pwa] 等待桌面 PWA Service Worker 就绪');
+              await navigator.serviceWorker.ready;
+              console.info('[pwa] 桌面 PWA Service Worker 已就绪');
+            } catch (error) {
+              console.info('[pwa] 桌面 PWA Service Worker 未就绪，跳过版本检测', error?.message || error);
+              return;
+            }
+          }
+          void checkOnlineVersion();
+        }
         else if (navigator.onLine === false) {
           window.onlineVersion = null;
           displaySettingsVersion(null);
@@ -550,7 +568,12 @@
         if (isHome()) {
           const isStandalone = window.matchMedia('(display-mode: standalone)').matches;
           console.info('[pwa] 网络恢复，重新检查版本', { mode: isStandalone ? 'PWA 桌面独立模式' : '网页模式' });
-          void checkOnlineVersion();
+          if (isStandalone && 'serviceWorker' in navigator) {
+            void navigator.serviceWorker.ready.then(() => {
+              console.info('[pwa] 网络恢复后 Service Worker 已就绪');
+              return checkOnlineVersion();
+            }).catch(error => console.info('[pwa] 等待 Service Worker 失败', error?.message || error));
+          } else void checkOnlineVersion();
         }
       });
     }
