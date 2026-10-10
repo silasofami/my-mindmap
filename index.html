@@ -442,33 +442,11 @@
         if (!isHome()) return;
         let registration;
         let updatePrompt;
+        let waitingWorker = null;
         let reloadAfterUpdate = false;
-
-        const compareVersions = (left, right) => {
-          const a = String(left || '').split('.').map(Number);
-          const b = String(right || '').split('.').map(Number);
-          for (let i = 0; i < Math.max(a.length, b.length); i++) {
-            const delta = (a[i] || 0) - (b[i] || 0);
-            if (delta) return Math.sign(delta);
-          }
-          return 0;
-        };
-        const getWorkerVersion = worker => new Promise(resolve => {
-          if (!worker || !('MessageChannel' in window)) return resolve(null);
-          const channel = new MessageChannel();
-          const timeout = setTimeout(() => { channel.port1.close(); resolve(null); }, 700);
-          channel.port1.onmessage = event => {
-            clearTimeout(timeout);
-            channel.port1.close();
-            resolve(event.data?.appVersion || null);
-          };
-          worker.postMessage({ type: 'GET_APP_VERSION' }, [channel.port2]);
-        });
-        const showUpdatePrompt = async worker => {
+        const showUpdatePrompt = worker => {
           if (!worker || !isHome()) return;
-          const nextVersion = await getWorkerVersion(worker);
-          const currentVersion = await getWorkerVersion(registration?.active);
-          if (nextVersion && currentVersion && compareVersions(nextVersion, currentVersion) <= 0) return;
+          waitingWorker = worker;
           if (!updatePrompt) {
             const style = document.createElement('style');
             style.textContent = '.pwa-update-prompt{position:fixed;z-index:10050;top:14px;left:50%;transform:translateX(-50%);width:min(560px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;padding:13px 15px;border:1px solid var(--ui-border,#e6e9ee);border-radius:12px;background:var(--ui-surface,#fff);color:var(--ui-text,#303440);box-shadow:0 12px 36px #131a2a30;font:13px/1.45 system-ui,sans-serif}.pwa-update-prompt span{flex:1}.pwa-update-prompt button{border:0;border-radius:8px;padding:8px 12px;background:#6256dd;color:white;font:inherit;font-weight:600;cursor:pointer}.pwa-update-prompt .pwa-update-later{padding:7px;background:transparent;color:var(--ui-text-muted,#737987)}html[data-ui-theme="dark"] .pwa-update-prompt{background:var(--ui-surface,#222633);color:var(--ui-text,#edf0f7)}@media(max-width:520px){.pwa-update-prompt{top:auto;bottom:max(12px,env(safe-area-inset-bottom));align-items:flex-start;flex-wrap:wrap}.pwa-update-prompt span{flex-basis:100%}}';
@@ -484,7 +462,7 @@
             refresh.textContent = '刷新更新';
             refresh.addEventListener('click', () => {
               reloadAfterUpdate = true;
-              worker.postMessage({ type: 'ACTIVATE_UPDATE' });
+              waitingWorker?.postMessage({ type: 'ACTIVATE_UPDATE' });
               refresh.disabled = true;
               refresh.textContent = '正在更新…';
             });
@@ -501,16 +479,32 @@
           if (!isHome() || !registration) return;
           try {
             await registration.update();
-            if (registration.waiting) await showUpdatePrompt(registration.waiting);
+            if (registration.waiting) {
+              console.info('[pwa] 检查到等待中的新版 Service Worker');
+              showUpdatePrompt(registration.waiting);
+            }
           } catch {}
         };
         try {
           registration = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
-          if (registration.waiting) void showUpdatePrompt(registration.waiting);
+          console.info('[pwa] Service Worker 注册成功', { scope: registration.scope });
+          // A worker may already be waiting by the time this page finishes loading.
+          if (registration.waiting) {
+            console.info('[pwa] 注册完成时发现 waiting Service Worker');
+            showUpdatePrompt(registration.waiting);
+          }
           registration.addEventListener('updatefound', () => {
+            console.info('[pwa] updatefound：检测到新的 Service Worker');
             const installing = registration.installing;
-            installing?.addEventListener('statechange', () => {
-              if (installing.state === 'installed' && registration.waiting) void showUpdatePrompt(registration.waiting);
+            if (!installing) return;
+            console.info('[pwa] 新 Service Worker 初始状态', installing.state);
+            installing.addEventListener('statechange', () => {
+              console.info('[pwa] 新 Service Worker 状态切换', installing.state);
+              // The ServiceWorker state is "installed" while Registration.waiting exposes it as the waiting worker.
+              if (installing.state === 'installed' && registration.waiting === installing) {
+                console.info('[pwa] 新 Service Worker 已安装并等待激活');
+                showUpdatePrompt(installing);
+              }
             });
           });
           navigator.serviceWorker.addEventListener('controllerchange', () => {
