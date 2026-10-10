@@ -1,4 +1,4 @@
-// test v1.0.4 test polling update
+// v1.0.5 test after fix later bug
 
 const APP_VERSION = '1.0.2';
 const CACHE_VERSION = 'mindmap-v1.0.2';
