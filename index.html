@@ -440,6 +440,7 @@
         return !!library && !library.hidden && (location.pathname === '/' || location.pathname === '/index.html');
       };
       let hasShownUpdatePrompt = false;
+      const acceptedVersionStorageKey = 'mindmap_last_accepted_version';
 
       const compareVersions = (left, right) => {
         const parts = value => String(value).split(/[.+-]/).map(part => /^\d+$/.test(part) ? Number(part) : 0);
@@ -471,6 +472,11 @@
         refresh.addEventListener('click', () => {
           refresh.disabled = true;
           refresh.textContent = '正在刷新…';
+          try {
+            localStorage.setItem(acceptedVersionStorageKey, onlineVersion);
+          } catch (error) {
+            console.warn('[pwa] 无法保存已确认版本，仍将继续刷新', error?.message || error);
+          }
           window.location.reload(true);
         });
         const later = document.createElement('button');
@@ -488,8 +494,18 @@
           const response = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
           if (!response.ok) return;
           const { version } = await response.json();
-          console.info('[pwa] 版本检查完成', { current: APP_VERSION, online: version });
-          if (typeof version === 'string' && compareVersions(version, APP_VERSION) > 0) showUpdatePrompt(version);
+          let acceptedVersion = APP_VERSION;
+          try {
+            acceptedVersion = localStorage.getItem(acceptedVersionStorageKey) || APP_VERSION;
+          } catch (error) {
+            console.warn('[pwa] 无法读取已确认版本，按当前源码版本比较', error?.message || error);
+          }
+          console.info('[pwa] 版本检查完成', { online: version, appVersion: APP_VERSION, acceptedVersion });
+          if (typeof version === 'string'
+            && compareVersions(version, APP_VERSION) > 0
+            && compareVersions(version, acceptedVersion) > 0) {
+            showUpdatePrompt(version);
+          }
         } catch (error) {
           console.info('[pwa] 版本检查跳过', error?.message || error);
         }
