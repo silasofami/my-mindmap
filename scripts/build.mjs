@@ -53,12 +53,12 @@ let vercelProjectLink = null;
 const vercelProjectLinkPath = path.join(dist, '.vercel', 'project.json');
 try { vercelProjectLink = fs.readFileSync(vercelProjectLinkPath, 'utf8'); } catch {}
 const sourceIndex = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
-const baseVersionMatch = sourceIndex.match(/const BASE_APP_VERSION = "(\d+\.\d+\.\d+)";/);
-if (!baseVersionMatch) throw new Error('index.html must define const BASE_APP_VERSION = "x.y.z";');
+const baseVersionMatch = sourceIndex.match(/window\.BASE_APP_VERSION = "(\d+\.\d+\.\d+)";/);
+if (!baseVersionMatch) throw new Error('index.html must define window.BASE_APP_VERSION = "x.y.z";');
 const previousBuildVersion = (() => {
   try {
     const previousIndex = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
-    return previousIndex.match(/const BASE_APP_VERSION = "([^"]+)";/)?.[1] || '';
+    return previousIndex.match(/window\.BASE_APP_VERSION = "([^"]+)";/)?.[1] || '';
   } catch { return ''; }
 })();
 const previousBuildTimestamp = Number(String(previousBuildVersion).match(/\+(\d+)$/)?.[1] || 0);
@@ -70,8 +70,8 @@ for (const name of files) fs.copyFileSync(path.join(root, name), path.join(dist,
 const distIndexPath = path.join(dist, 'index.html');
 const copiedIndex = fs.readFileSync(distIndexPath, 'utf8');
 const builtHomepage = copiedIndex.replace(
-  /const BASE_APP_VERSION = "\d+\.\d+\.\d+";/,
-  `const BASE_APP_VERSION = ${JSON.stringify(buildVersion)};`
+  /window\.BASE_APP_VERSION = "\d+\.\d+\.\d+";/,
+  `window.BASE_APP_VERSION = ${JSON.stringify(buildVersion)};`
 );
 if (builtHomepage === copiedIndex) throw new Error('Could not inject the build version into dist/index.html.');
 fs.writeFileSync(distIndexPath, builtHomepage, 'utf8');
@@ -93,15 +93,15 @@ fs.writeFileSync(path.join(dist, 'supabase-public-config.js'), publicConfig, 'ut
 
 if (!supabaseUrl || !anonKey) console.warn('Built without public Supabase config. Login can still use browser settings; public share previews need this config.');
 const builtIndex = fs.readFileSync(distIndexPath, 'utf8');
-const builtAppVersion = builtIndex.match(/const BASE_APP_VERSION = "([^"]+)";/)?.[1];
+const builtAppVersion = builtIndex.match(/window\.BASE_APP_VERSION = "([^"]+)";/)?.[1];
 if (!builtAppVersion || builtAppVersion !== buildVersion) {
-  throw new Error(`dist/index.html BASE_APP_VERSION mismatch: expected ${buildVersion}, got ${builtAppVersion || 'missing'}.`);
+  throw new Error(`dist/index.html window.BASE_APP_VERSION mismatch: expected ${buildVersion}, got ${builtAppVersion || 'missing'}.`);
 }
 const distManifestPath = path.join(dist, 'manifest.webmanifest');
 if (!fs.existsSync(distManifestPath)) {
   console.error(`Build error: required manifest file was not copied: ${distManifestPath}`);
   throw new Error(`Build output is missing: ${distManifestPath}`);
 }
-console.log(`dist/index.html BASE_APP_VERSION: ${builtAppVersion}`);
+console.log(`dist/index.html window.BASE_APP_VERSION: ${builtAppVersion}`);
 console.log(`Build version injected into homepage: ${buildVersion}`);
 console.log(`Static app built: ${dist}`);

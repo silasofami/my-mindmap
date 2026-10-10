@@ -35,9 +35,9 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // Match pathname only so cache-busting query strings do not affect the bypass.
-  if (url.pathname === '/version.json') {
-    console.info('[sw] version.json直接透传网络', request.url);
+  // Bypass cache handling for explicit version checks, regardless of other URL params.
+  if (url.searchParams.get('check_version') === '1') {
+    console.info('[sw] check_version=1 直接透传网络', request.url);
     event.respondWith(fetch(request));
     return;
   }
