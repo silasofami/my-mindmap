@@ -505,8 +505,11 @@
         } catch (error) {
           console.warn('[pwa] 无法读取已确认版本', error?.message || error);
         }
-        const shouldPrompt = compareVersions(version, acceptedVersion || '0.0.0') > 0;
-        console.info('[pwa] 弹窗判断结果', { version, acceptedVersion: acceptedVersion || null, shouldPrompt });
+        const baseVersion = window.BASE_APP_VERSION || '0.0.0';
+        const confirmedVersion = acceptedVersion || baseVersion;
+        const shouldPrompt = compareVersions(version, baseVersion) > 0
+          && compareVersions(version, confirmedVersion) > 0;
+        console.info('[pwa] 弹窗判断结果', { version, baseVersion, acceptedVersion: acceptedVersion || null, shouldPrompt });
         if (shouldPrompt) showUpdatePrompt(version);
       };
 

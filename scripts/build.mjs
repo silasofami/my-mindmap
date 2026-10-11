@@ -109,8 +109,12 @@ if (!/<head>\s*<meta charset="utf-8">\s*<script>\s*window\.BASE_APP_VERSION\s*=\
 }
 const builtSw = fs.readFileSync(distSwPath, 'utf8');
 const builtSwVersion = builtSw.match(/const APP_VERSION = "([^"]+)";/)?.[1];
+const builtCacheName = builtSw.match(/const CACHE_NAME = "([^"]+)";/)?.[1];
 if (builtSwVersion !== buildVersion) {
   throw new Error(`dist/sw.js APP_VERSION mismatch: expected ${buildVersion}, got ${builtSwVersion || 'missing'}.`);
+}
+if (builtCacheName !== `shinian-app-shell-${buildVersion}`) {
+  throw new Error(`dist/sw.js CACHE_NAME mismatch: expected shinian-app-shell-${buildVersion}, got ${builtCacheName || 'missing'}.`);
 }
 if (!/const CACHE_NAME = "[^\"]+";\s*const APP_VERSION = "[^"]+";/.test(builtSw)) {
   throw new Error('dist/sw.js must place APP_VERSION immediately after CACHE_NAME.');
@@ -122,5 +126,6 @@ if (!fs.existsSync(distManifestPath)) {
 }
 console.log(`dist/index.html window.BASE_APP_VERSION: ${builtAppVersion}`);
 console.log(`dist/sw.js APP_VERSION: ${builtSwVersion}`);
+console.log(`dist/sw.js CACHE_NAME: ${builtCacheName}`);
 console.log(`Build version injected into homepage: ${buildVersion}`);
 console.log(`Static app built: ${dist}`);
