@@ -1087,3 +1087,13 @@ html[data-ui-theme="dark"] .settings-danger-button{border-color:#77454b;backgrou
 html[data-ui-theme="dark"] .settings-danger-button:hover{background:#583239}
 html[data-ui-theme="dark"] .settings-danger-icon{background:#492c31;color:#ffaaa4}
 @media(max-width:560px){.global-settings-backdrop{align-items:end;padding:0}.global-settings-dialog{width:100%;max-height:92dvh;border-radius:18px 18px 0 0;padding:24px 19px max(18px,env(safe-area-inset-bottom))}.settings-theme-options{gap:5px}.settings-theme-options label{justify-content:center;padding:7px 4px;font-size:10px}.settings-action-row{flex-direction:column}.settings-action-row button{width:100%;flex-basis:auto}.settings-confirm-dialog{width:min(100%,440px);margin:auto 0;border-radius:18px;padding:26px 20px}.settings-confirm-actions{flex-direction:column-reverse}.settings-confirm-actions button{width:100%;min-height:44px}}
+
+/* Keep library card columns and thumbnail geometry stable while the window resizes. */
+#libraryView .cloud-map-list,
+#libraryView .local-map-list{width:100%;min-width:0;box-sizing:border-box;grid-template-columns:repeat(auto-fill,minmax(min(280px,100%),1fr));transition:grid-template-columns .2s ease,gap .2s ease}
+#libraryView .cloud-map-list{gap:14px}
+#libraryView .local-map-list{gap:12px}
+#libraryView .cloud-map-card,
+#libraryView .local-map-card{min-width:0;box-sizing:border-box}
+#libraryView .card-preview{width:calc(100% + 26px);height:auto;aspect-ratio:16 / 9;box-sizing:border-box;overflow:hidden;transition:width .2s ease,height .2s ease}
+#libraryView .card-thumbnail{display:block;width:100%;height:100%;box-sizing:border-box;object-fit:cover;object-position:center}
