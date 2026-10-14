@@ -1,0 +1,2 @@
+/* Netlify-style SPA fallback for direct /share/{id} visits. */
+/share/*  /index.html  200
